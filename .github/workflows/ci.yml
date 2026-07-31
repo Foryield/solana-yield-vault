@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # Versions tranchees contre le RESEAU (verdict S3) : devnet annonce
+  # solana-core 4.1.2. Elles doivent rester alignees sur `[toolchain]` de
+  # Anchor.toml ; le job « Versions alignees » echoue si elles divergent.
+  SOLANA_VERSION: 4.1.2
+  ANCHOR_VERSION: 1.1.2
+
+jobs:
+  versions:
+    name: Versions alignees
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Anchor.toml est la source de verite des versions. Ce controle existe
+      # parce que `anchor build` REECRIT ce fichier : une divergence silencieuse
+      # entre ce que la CI installe et ce que le depot declare est possible.
+      - name: Anchor.toml et le workflow declarent les memes versions
+        run: |
+          set -euo pipefail
+          toml_anchor=$(grep -E '^anchor_version' Anchor.toml | cut -d'"' -f2)
+          toml_solana=$(grep -E '^solana_version' Anchor.toml | cut -d'"' -f2)
+          echo "Anchor.toml : anchor=$toml_anchor solana=$toml_solana"
+          echo "workflow    : anchor=$ANCHOR_VERSION solana=$SOLANA_VERSION"
+          [ "$toml_anchor" = "$ANCHOR_VERSION" ] || { echo "::error::version Anchor divergente"; exit 1; }
+          [ "$toml_solana" = "$SOLANA_VERSION" ] || { echo "::error::version Solana divergente"; exit 1; }
+
+  lint:
+    name: Format et clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      # --all-targets couvre aussi les tests : une negligence dans un test est
+      # une negligence.
+      - run: cargo clippy --all-targets -- -D warnings
+
+  build-and-test:
+    name: Build et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Chaine Agave
+        run: |
+          set -euo pipefail
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Anchor (binaire precompile)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/anchor" \
+            "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/anchor"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: solana --version && anchor --version
+      # Le .so DOIT preceder les tests : les tests d'integration le chargent
+      # dans le simulateur en processus.
+      - run: anchor build
+      - run: cargo test --workspace
+
+  coverage:
+    name: Couverture du module pur
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
+      - name: Chaine Agave
+        run: |
+          set -euo pipefail
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Anchor (binaire precompile)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/anchor" \
+            "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/anchor"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: anchor build
+      # LE SEUIL VISE LE MODULE PUR, JAMAIS LE TOTAL.
+      #
+      # Le spike S2 a mesure que le chemin BPF rend zero pour cent : le
+      # simulateur execute le .so, donc le code instrumente cote hote n'est
+      # jamais atteint. Le total du depot est ainsi tombe de 87 % a 46 % au fil
+      # des cinq instructions, sans qu'aucune ligne cesse d'etre testee. Un
+      # seuil pose sur ce total aurait du etre desserre a chaque tache, jusqu'a
+      # ne plus rien garantir.
+      #
+      # Le filtre ecarte les fichiers qui ne s'executent qu'en BPF. Il les nomme
+      # au lieu de nommer math.rs, pour qu'un NOUVEAU module pur entre dans la
+      # mesure par defaut : ajouter un gestionnaire au filtre est alors une
+      # decision visible en revue, jamais un oubli silencieux.
+      - name: Seuil sur la logique pure
+        run: >
+          cargo llvm-cov --workspace --summary-only
+          --ignore-filename-regex '(src/instructions/|src/lib\.rs|src/state\.rs|src/error\.rs)'
+          --fail-under-lines 100

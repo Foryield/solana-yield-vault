@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.6 | 2026-07-31 | Tâche 6 livrée : les six tâches du coffre sont closes ; seuil de couverture éprouvé par retrait d'un test |
 | 1.5 | 2026-07-31 | Tâche 5 livrée ; la suspension ne gèle pas le marché secondaire des parts, décision explicitée |
 | 1.4 | 2026-07-31 | Tâche 4 livrée ; le retrait intégral laisse à jamais la contrepartie des parts mortes au coffre |
 | 1.3 | 2026-07-31 | Tâche 3 livrée ; deux pièges consignés (pile BPF, test négatif qui passe pour n'importe quelle raison) |
