@@ -15,26 +15,33 @@ const programmes = ["yield_vault", "compliance_hook"];
 const verifie = process.argv.includes("--check");
 
 /**
- * Identifiants declares dans Anchor.toml, qui est COMMIS et fait donc foi.
+ * Identifiants declares par `declare_id!` dans les sources des programmes.
  *
- * Necessaire parce que le champ `address` de l'IDL genere depend de la
- * machine : sur une copie fraiche, `anchor build` fabrique de nouvelles paires
- * de cles de programme, celles-ci etant ignorees par git a juste titre, et
- * inscrit leurs identifiants dans l'IDL. Le fichier commis porterait alors une
- * valeur locale, et le controle de derive echouerait sur toute autre machine.
+ * NE PAS lire Anchor.toml ici, meme s'il est commis : `anchor build` LE
+ * REECRIT pour l'aligner sur les paires de cles qu'il vient de generer. Sur une
+ * copie fraiche, ces paires sont neuves (elles sont ignorees par git, a juste
+ * titre), donc Anchor.toml est mute par le build juste avant qu'on le lise.
  *
- * On reecrit donc l'adresse depuis la source de verite avant de comparer ou
- * d'ecrire. Corollaire pour le client : ne JAMAIS lire l'identifiant de
- * programme depuis l'IDL, toujours le passer explicitement.
+ * `declare_id!` dans les sources, lui, n'est touche que par `anchor keys sync`,
+ * une commande explicite. C'est la seule source stable, et c'est aussi celle
+ * qui determine l'identifiant du binaire compile.
+ *
+ * Corollaire pour le client : ne JAMAIS lire l'identifiant de programme depuis
+ * l'IDL, toujours le passer explicitement.
  */
 function identifiantsDeclares() {
-  const toml = readFileSync(join(racine, "Anchor.toml"), "utf8");
-  const section = toml.split("[programs.devnet]")[1] ?? "";
   const ids = {};
-  for (const ligne of section.split("\n")) {
-    if (ligne.startsWith("[")) break;
-    const m = ligne.match(/^\s*([a-z_]+)\s*=\s*"([1-9A-HJ-NP-Za-km-z]+)"/);
-    if (m) ids[m[1]] = m[2];
+  for (const nom of programmes) {
+    const crate = nom.replace(/_/g, "-");
+    const source = join(racine, "programs", crate, "src", "lib.rs");
+    const m = readFileSync(source, "utf8").match(
+      /declare_id!\("([1-9A-HJ-NP-Za-km-z]+)"\)/,
+    );
+    if (!m) {
+      console.error(`declare_id! introuvable dans ${source}`);
+      process.exit(1);
+    }
+    ids[nom] = m[1];
   }
   return ids;
 }

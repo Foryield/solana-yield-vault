@@ -105,7 +105,15 @@ Two consequences worth knowing before they bite:
 
 **The IDL's `address` field is machine-dependent.** On a fresh clone the build
 mints new keypairs and writes their ids into the IDL. The sync script therefore
-rewrites that field from `Anchor.toml`, which is committed and authoritative.
+rewrites that field from the `declare_id!` in the program sources.
+
+Not from `Anchor.toml`, even though that file is committed: **`anchor build`
+rewrites `Anchor.toml`** to match the keypairs it just generated, so on a fresh
+clone it is mutated by the build moments before anything reads it. `declare_id!`
+is only touched by `anchor keys sync`, an explicit command, and it is what
+determines the compiled binary's id. Anything reading `Anchor.toml` *after* a
+build is reading generated values.
+
 **Never read a program id from the IDL** — pass it explicitly.
 
 **A fresh clone cannot redeploy to the existing addresses.** The programs
