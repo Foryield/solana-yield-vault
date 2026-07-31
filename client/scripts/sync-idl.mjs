@@ -17,7 +17,7 @@ const verifie = process.argv.includes("--check");
 let derive = false;
 for (const nom of programmes) {
   const source = join(racine, "target", "idl", `${nom}.json`);
-  const cible = join(ici, "..", "idl", `${nom}.json`);
+  const cible = join(ici, "..", "src", "idl", `${nom}.json`);
   if (!existsSync(source)) {
     console.error(`IDL absent : ${source}. Lancer \`anchor build\` d'abord.`);
     process.exit(1);
@@ -72,7 +72,7 @@ for (const nom of programmes) {
 const ADRESSE_NEUTRE = "11111111111111111111111111111111";
 for (const nom of programmes) {
   const source = join(racine, "target", "types", `${nom}.ts`);
-  const cible = join(ici, "..", "idl", `${nom}.ts`);
+  const cible = join(ici, "..", "src", "idl", `${nom}.ts`);
   if (!existsSync(source)) {
     console.error(`types absents : ${source}. Lancer \`anchor build\` d'abord.`);
     process.exit(1);

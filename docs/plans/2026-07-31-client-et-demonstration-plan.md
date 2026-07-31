@@ -6,6 +6,7 @@ programmes.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-07-31 | Tâches 1 et 2 livrées : composition, lecture d'état et ligne de commande d'administration |
 | 1.2 | 2026-07-31 | L'IDL commis ne porte plus d'adresse : rien dans l'arbre de travail n'en porte de stable après un build |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; le plan sous-estimait un point : la dérivation d'adresses est INÉVITABLEMENT écrite deux fois, d'où les fixtures croisées |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
@@ -93,9 +94,22 @@ Les IDL sont **commis** dans le paquet, un navigateur ne pouvant pas lire
 dédié échoue si le dépôt ne correspond plus aux programmes, et l'intégration
 continue l'exerce. Même motif que le contrôle d'alignement des versions.
 
-**2. Ligne de commande d'administration.** Attacher le hook à un mint,
-initialiser un coffre, autoriser et révoquer, lire l'état. Clé locale, jamais
-de clé dans le code.
+**2. Ligne de commande d'administration.** *Livrée le 31/07*, cinq commandes,
+dix tests.
+
+Deux garde-fous, tous deux testés sur ce qu'ils **refusent**. Rien n'est déduit
+de l'environnement : sans point d'accès, sans identifiants de programme ou sans
+chemin de clé, la commande s'arrête en expliquant pourquoi. Et viser le mainnet
+exige une confirmation explicite, parce que le CLI Solana y pointe par défaut et
+qu'une commande d'administration qui en hériterait dépenserait du SOL réel sur
+un geste qu'on croyait de test.
+
+Le programme de jeton de l'actif est **lu on-chain** plutôt que supposé : USDC
+et EURC devnet sont du SPL classique, mais rien ne l'impose à un autre actif.
+
+Éprouvée contre devnet : la lecture d'état rend les mêmes adresses que les
+fixtures, ce qui confronte une troisième fois la dérivation TypeScript à celle
+des programmes, cette fois via le réseau.
 
 **3. La preuve devnet.** C'est le but du chantier. Un coffre initialisé sur
 l'USDC réel de Circle, un dépôt, un retrait, signatures consignées. Puis la même

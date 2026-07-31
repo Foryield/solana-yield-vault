@@ -27,3 +27,6 @@ out/
 
 # Le paquet client est verrouille par son package-lock, commis.
 client/dist/
+ops/dist/
+client/src/**/*.js
+client/src/**/*.d.ts

@@ -1,9 +1,9 @@
 import { Program, type Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import vaultIdl from "../idl/yield_vault.json" with { type: "json" };
-import hookIdl from "../idl/compliance_hook.json" with { type: "json" };
-import type { YieldVault } from "../idl/yield_vault.js";
-import type { ComplianceHook } from "../idl/compliance_hook.js";
+import vaultIdl from "./idl/yield_vault.json" with { type: "json" };
+import hookIdl from "./idl/compliance_hook.json" with { type: "json" };
+import type { YieldVault } from "./idl/yield_vault.js";
+import type { ComplianceHook } from "./idl/compliance_hook.js";
 
 /**
  * Construction des clients Anchor des deux programmes.
