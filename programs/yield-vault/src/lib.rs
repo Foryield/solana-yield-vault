@@ -18,6 +18,8 @@
 //! rien du chemin BPF qu'emprunte LiteSVM : sans ce decoupage, aucun seuil de
 //! couverture n'a de sens. Mesure a l'appui dans le verdict S2.
 
+pub mod math;
+
 use anchor_lang::prelude::*;
 
 declare_id!("2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw");
