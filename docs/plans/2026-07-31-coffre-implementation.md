@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-07-31 | Tâche 2 livrée ; le seuil de couverture devra viser le module pur nommément, le total tombant à 87 % dès qu'un gestionnaire existe |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; stratégie de test des tâches 2 à 5 tranchée (le simulateur en processus suffit, rien à vendoriser) |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
 
@@ -150,6 +151,14 @@ parts, transférer l'actif. État d'abord, appel externe ensuite.
 
 **6. Intégration continue.** Compilation, tests, format, clippy, et seuil de
 couverture sur le module pur.
+
+Chiffre à connaître avant d'écrire ce seuil, relevé à la tâche 2 : le module
+d'arithmétique se mesure à 100 %, mais le **total de l'espace de travail tombe à
+87 %** dès qu'un gestionnaire d'instruction existe, puisqu'il ne s'exécute qu'en
+BPF. Le seuil doit donc porter sur le module pur nommément, jamais sur le total,
+sans quoi il baissera mécaniquement à chaque instruction ajoutée et finira par
+être desserré pour de mauvaises raisons. C'est le pendant Solana du filtre
+d'exclusion qui rendait le seuil mordant sur la version Soroban.
 
 Chaque tâche est une PR. Le hook de conformité et son propre jeu de tests, dont
 les six cas arrêtés au verdict S1, font l'objet d'un chantier distinct.

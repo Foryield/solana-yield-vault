@@ -18,11 +18,24 @@
 //! rien du chemin BPF qu'emprunte LiteSVM : sans ce decoupage, aucun seuil de
 //! couverture n'a de sens. Mesure a l'appui dans le verdict S2.
 
+pub mod instructions;
 pub mod math;
+pub mod state;
 
 use anchor_lang::prelude::*;
+
+pub use instructions::*;
+pub use state::*;
 
 declare_id!("2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw");
 
 #[program]
-pub mod yield_vault {}
+pub mod yield_vault {
+    use super::*;
+
+    /// Cree le coffre, le mint des parts et les comptes de detention.
+    /// `hook_program` est fige ici : il ne changera plus.
+    pub fn initialize(ctx: Context<Initialize>, hook_program: Pubkey) -> Result<()> {
+        instructions::initialize::handle_initialize(ctx, hook_program)
+    }
+}
