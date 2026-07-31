@@ -4,8 +4,6 @@
 //! n'est defini que pour les cibles de test d'integration, et la bibliotheque
 //! ne compile pas si elle y fait appel.
 
-#![allow(dead_code)] // consomme des la premiere instruction (S1)
-
 use std::path::PathBuf;
 
 /// Lit le `.so` du programme, quel que soit le repertoire cible en vigueur.
