@@ -5,6 +5,7 @@ de programme.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-07-31 | Etancheite du hook etablie par S1 : la liste d'autorisation suffit, aucune extension supplementaire (§3.2) |
 | 1.1 | 2026-07-31 | Amendement après S2 et S3 : l'arithmétique du coffre passe en fonctions pures (§3.1), la réserve sur la couverture est levée (§4), les versions Anchor et Agave sont tranchées (§6) |
 | 1.0 | 2026-07-31 | Conception initiale |
 
@@ -161,10 +162,23 @@ plafond arbitraire sur le nombre de porteurs éligibles.
 Ce découplage est délibéré : le coffre reste ignorant de la conformité, et
 n'importe quel protocole Solana peut forker le hook seul.
 
-**Point non supposé, à dérisquer avant écriture** : quelles instructions de
-transfert déclenchent réellement le hook, et ce que fait Token-2022 face à une
-instruction qui ne le déclenche pas. Si une voie de contournement existe, la
-liste d'autorisation ne vaut rien. Voir le plan de spikes.
+**Étanchéité établie par S1 le 31/07.** La question était de savoir si une voie
+de mouvement échappait au hook, auquel cas la liste d'autorisation n'aurait rien
+valu. Réponse : aucune.
+
+Le transfert vérifié invoque le hook. Le transfert hérité ne le contourne pas,
+il échoue, parce que le chemin sans mint refuse tout compte portant l'extension
+`TransferHookAccount`. Et cette extension ne peut pas être esquivée : à
+l'initialisation d'un compte, Token-2022 calcule la taille requise depuis les
+extensions du mint, rejette un compte trop petit, puis écrit lui-même les
+extensions requises. Un mint à hook impose donc l'extension à tous ses comptes.
+Les transferts confidentiels, qui empruntent un processeur distinct, invoquent
+le hook selon le même motif. La destruction et la fermeture de compte ne
+déplacent pas de valeur vers un tiers.
+
+Conséquence de conception : **la liste d'autorisation suffit**, aucune extension
+supplémentaire n'est nécessaire pour la rendre étanche. Citations précises et
+provenance épinglée dans le verdict S1 du plan de spikes.
 
 ### 3.3 L'allocateur
 
@@ -276,7 +290,8 @@ routage Jupiter Swap tourne sur devnet.
 
 ## 6. Points ouverts
 
-1. Ce qui déclenche réellement le hook de transfert (bloquant, §3.2). **Ouvert.**
+1. ~~Ce qui déclenche réellement le hook de transfert.~~ **Tranché le 31/07** :
+   aucune voie de mouvement n'y échappe, la liste d'autorisation suffit (§3.2).
 2. ~~Faisabilité et niveau de la mesure de couverture.~~ **Tranché le 31/07** :
    mesurable sur la logique pure côté hôte uniquement, cf. §3.1 et §4.
 3. ~~Alignement des versions Anchor et Agave.~~ **Tranché le 31/07 contre le

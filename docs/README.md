@@ -21,7 +21,7 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 
 | Spike | Sujet | Bloquant | État |
 |---|---|---|---|
-| S1 | Ce qui déclenche réellement le hook de transfert | oui | à faire |
+| S1 | Ce qui déclenche réellement le hook de transfert | oui | **rendu** (31/07) |
 | S2 | Mesure de couverture sur cible BPF | oui | **rendu** (31/07) |
 | S3 | Alignement des versions et amorçage | oui | **clos** (31/07) |
 | S4 | Jupiter Lend en CPI | non | à faire |
@@ -46,9 +46,21 @@ déployée sur devnet, identifiant et signatures consignés dans
 d'exploitation utiles à un contributeur (clés, robinet, piège du CLI pointant
 par défaut sur `mainnet-beta`).
 
-**S1 est désormais le seul spike bloquant restant**, et c'est celui dont un
-verdict négatif oblige à reprendre l'architecture. Aucune instruction ne sera
-écrite avant qu'il ait rendu.
+**Les trois spikes bloquants ont rendu. L'écriture des programmes peut
+commencer.**
+
+S1 conclut que la liste d'autorisation est étanche : aucune voie de mouvement
+n'échappe au hook, ni le transfert hérité, ni les transferts confidentiels, ni
+la délégation. L'architecture du module de conformité tient telle que conçue.
+Une réserve de méthode subsiste et sa levée est programmée : la preuve vient de
+la lecture de la source de Token-2022, et l'épreuve empirique prendra la forme
+de tests permanents écrits avec le hook, dont la liste est arrêtée dans le
+verdict.
+
+Restent S4 à S7, non bloquants, à mener en parallèle de l'écriture. S6 a déjà
+livré son résultat par anticipation : la distribution en ligne de commande est
+inutilisable sur devnet, le robinet web plafonne à deux requêtes par tranche de
+huit heures, et ce plafond contraint le rythme des déploiements.
 
 Chaque spike inscrit son verdict, ses adresses et ses signatures directement
 dans le document de spikes, daté. Un spike sans verdict écrit n'a pas eu lieu.
