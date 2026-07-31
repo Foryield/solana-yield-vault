@@ -45,4 +45,9 @@ pub mod yield_vault {
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         instructions::deposit::handle_deposit(ctx, amount)
     }
+
+    /// Detruit `shares` parts et restitue l'actif au pro-rata.
+    pub fn withdraw(ctx: Context<Withdraw>, shares: u64) -> Result<()> {
+        instructions::withdraw::handle_withdraw(ctx, shares)
+    }
 }
