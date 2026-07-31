@@ -5,6 +5,7 @@ Plan d'exécution du programme `compliance-hook`. Suppose lus la conception
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-07-31 | Tâche 1 livrée ; identifiant du hook `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63` |
 | 1.0 | 2026-07-31 | Plan initial, 5 tâches |
 
 ---
@@ -90,11 +91,25 @@ une signature multiple relève du chantier mainnet, comme sur la version Soroban
 
 ## Tâches
 
-**1. Ossature du programme et liste des comptes supplémentaires.** Le squelette
-Anchor, le compte de configuration, et l'initialisation de la
-`ExtraAccountMetaList` avec la dérivation depuis le propriétaire du compte de
-destination. C'est la tâche à risque : elle se valide par un transfert réel qui
-atteint le hook.
+**1. Ossature du programme et liste des comptes supplémentaires.** *Livrée le
+31/07.* Identifiant `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63`, quatre
+tests.
+
+La liste est écrite au format que l'interface sait relire, vérifié en la
+relisant **avec la bibliothèque d'interface elle-même** plutôt qu'avec un
+décodage maison : ce qui compte est que Token-2022 la lise, pas que nous
+sachions la décoder.
+
+Deux points de fabrication à connaître. Le compte de la liste ne peut pas être
+créé par une contrainte `init` : sa taille dépend du nombre de métadonnées, que
+seule la bibliothèque sait calculer, donc la création se fait à la main dans le
+gestionnaire. Et ses graines sont imposées par l'interface, Token-2022 les
+dérivant lui-même pour la trouver.
+
+Réserve inchangée, et écrite dans l'en-tête du fichier de tests : rien ici ne
+prouve que la dérivation depuis les données du compte de destination désigne la
+bonne entrée. Seul un vrai transfert le dira, puisque c'est Token-2022 qui
+dérive. C'est la tâche 4.
 
 **2. Gestion de la liste.** Autoriser et révoquer, autorité uniquement.
 
