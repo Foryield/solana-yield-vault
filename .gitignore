@@ -1,0 +1,26 @@
+# Rust / Anchor
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.anchor/
+test-ledger/
+
+# Cles : aucune paire de cles ne rentre dans le depot, meme devnet.
+# Anchor genere les paires de programme sous target/deploy (deja ignore) ;
+# ces motifs couvrent les cles d'ops posees a la main.
+*-keypair.json
+id.json
+keys/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+.DS_Store

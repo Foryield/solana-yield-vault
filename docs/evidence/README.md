@@ -1,0 +1,27 @@
+# Evidence log
+
+One file per deliverable. Every proof is recorded **the day it is produced**,
+not reconstructed afterwards.
+
+Planned files:
+
+| File | Deliverable |
+|---|---|
+| `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause |
+| `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist |
+| `allocator.md` | CPI into Kamino, marginfi and Jupiter Lend; strategy adapter |
+| `routing.md` | Best-execution swap and rebalancing; devnet and mainnet-fork proofs |
+| `event-schema.md` | Compliance event schema v1 published as an open specification |
+
+Each entry records:
+
+- **Date** (UTC)
+- **What it proves** (one line)
+- **Transaction signature** + explorer link, with the cluster named explicitly
+- **Program ID**, when a (re)deployment
+- **Pull request** link, when code
+- **Media** (screenshot / video) path or URL, when visual
+
+Two rules that are not negotiable. The cluster is always named: a proof produced
+on a mainnet-forked local validator is never presented as a devnet proof.
+Nothing sensitive belongs here: public addresses only, and no key material.
