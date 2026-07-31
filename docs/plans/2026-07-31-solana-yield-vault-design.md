@@ -5,6 +5,7 @@ de programme.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-07-31 | Amendement après S2 et S3 : l'arithmétique du coffre passe en fonctions pures (§3.1), la réserve sur la couverture est levée (§4), les versions Anchor et Agave sont tranchées (§6) |
 | 1.0 | 2026-07-31 | Conception initiale |
 
 ---
@@ -132,6 +133,20 @@ Le coffre n'emprunte jamais, ce qui garde sa position hors de la matrice de
 liquidation des marchés de prêt. Le volet Borrow de Jupiter Lend est
 délibérément hors périmètre.
 
+**Découpage imposé par S2 (amendement du 31/07).** Toute cette arithmétique
+vit dans des **fonctions pures**, sans `Context` ni compte Anchor en argument,
+sous un module dédié testé côté hôte. Les gestionnaires d'instruction se
+réduisent à du câblage : lire les soldes, appeler la fonction pure, écrire
+l'état, émettre l'événement.
+
+La raison n'est pas esthétique, elle est mesurée. Le spike S2 a établi que le
+chemin BPF, qu'emprunte le harnais LiteSVM d'Anchor 1.1.2, rend **zéro pour
+cent** de couverture sur le code de programme, alors que la même logique
+extraite en fonction pure se mesure à 100 %. Sans ce découpage, aucun seuil de
+couverture n'a de sens, et l'arithmétique de parts est précisément l'endroit où
+un défaut coûte cher : c'est là qu'une revue avait trouvé le défaut de genèse
+sur la version Soroban.
+
 ### 3.2 Le hook de conformité
 
 `programs/compliance-hook`, programme séparé implémentant
@@ -232,10 +247,18 @@ Soroban est un validateur local qui clone les comptes du mainnet. C'est ainsi
 que le chemin Jupiter Swap sera éprouvé sans prétendre qu'il tourne sur devnet,
 et marginfi montre déjà le motif dans son propre dépôt.
 
-**Réserve honnête sur la couverture.** Sur Soroban, `cargo-llvm-cov` mesurait
-sans difficulté. Sur Solana, les programmes se compilent pour une cible BPF et la
-couverture ne se mesure que sur les tests compilés pour l'hôte. Aucun chiffre
-n'est promis avant mesure. C'est un spike, pas une hypothèse.
+**Couverture : réserve levée par S2 le 31/07.** La mesure est possible, mais
+elle ne porte **que sur la logique pure compilée côté hôte**. Le harnais
+LiteSVM d'Anchor 1.1.2 exécute le `.so` en BPF et rend zéro pour cent sur le
+code de programme, alors que la même logique extraite en fonction pure se
+mesure intégralement. Le seuil portera donc sur le module d'arithmétique, et le
+câblage restera couvert par des tests de comportement plutôt que par un
+pourcentage.
+
+C'est une frontière plus saine que sur Soroban, où il avait fallu exclure les
+fichiers de test pour que le seuil morde encore : ici les tests d'intégration
+vivent sous `tests/`, hors du périmètre mesuré. Le chiffre à retenir viendra de
+la première campagne de tests du coffre, pas d'un programme témoin.
 
 ## 5. Contrainte Jupiter
 
@@ -253,15 +276,20 @@ routage Jupiter Swap tourne sur devnet.
 
 ## 6. Points ouverts
 
-1. Ce qui déclenche réellement le hook de transfert (bloquant, §3.2).
-2. Faisabilité et niveau de la mesure de couverture (bloquant pour le seuil CI).
-3. Alignement des versions Anchor et Agave sur le runtime devnet du jour. Anchor
-   1.0.2 est la version courante ; marginfi, dépôt de production, épingle
-   `anchor_version = "1.0.2"` et `solana_version = "3.1.13"` ; la page
-   d'installation d'Anchor annonce encore Agave 2.0.26, ce qui sent la page
-   périmée. À trancher contre le réseau, pas contre une documentation.
+1. Ce qui déclenche réellement le hook de transfert (bloquant, §3.2). **Ouvert.**
+2. ~~Faisabilité et niveau de la mesure de couverture.~~ **Tranché le 31/07** :
+   mesurable sur la logique pure côté hôte uniquement, cf. §3.1 et §4.
+3. ~~Alignement des versions Anchor et Agave.~~ **Tranché le 31/07 contre le
+   réseau** : devnet en `solana-core 4.1.2`, jeu de fonctionnalités 3345198602 ;
+   Agave 4.1.2 et Anchor 1.1.2 retenus, Rust épinglé sur 1.89.0 par
+   `rust-toolchain.toml`. La page d'installation d'Anchor annonçait Agave
+   2.0.26, deux versions majeures de retard ; le pin d'Anchor 1.0.2 de marginfi
+   est lui aussi en retard sur le réseau et n'a donc pas été suivi.
 4. Confirmation par l'IDL que les quatre marchés Jupiter Lend devnet portent bien
-   USDC et EURC en actif sous-jacent (§2).
-5. Hébergement de la démonstration.
+   USDC et EURC en actif sous-jacent (§2). **Ouvert.**
+5. Hébergement de la démonstration. **Ouvert.**
+6. Clé d'exploitation devnet et approvisionnement en SOL, préalable au premier
+   déploiement. Aucune clé n'existe sur la machine de développement et le CLI
+   pointe par défaut sur `mainnet-beta`. **Ouvert**, rejoint S6.
 
 Ces cinq points sont traités par `2026-07-31-spikes-ouverture.md`.
