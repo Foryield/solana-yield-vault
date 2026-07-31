@@ -87,12 +87,18 @@ d'autorisation par PDA, garde interdisant l'appel hors transfert, et les six cas
 du spike S1 éprouvés contre de vrais transferts. Preuves dans
 [`evidence/compliance-hook.md`](./evidence/compliance-hook.md).
 
+Une **instance vivante** existe sur devnet depuis le 01/08 : un coffre sur
+l'USDC de Circle, dont le mint de parts est gouverné par le hook. Adresses et
+signatures dans [`evidence/devnet-instance.md`](./evidence/devnet-instance.md).
+
 ## Ce qui n'est pas encore là
 
-Aucun mint n'est gouverné par le hook sur devnet, aucun coffre n'y est
-initialisé, aucun dépôt n'y a été exécuté. Tout est éprouvé dans le simulateur.
-Lever cette réserve demande un client capable de composer les instructions,
-c'est-à-dire la démonstration web, qui n'existe pas.
+Aucun dépôt n'a été exécuté contre le réseau : le compte d'actif du coffre est
+vide. Déposer demande de l'USDC de test, dont le robinet est limité par adresse.
+C'est une dépendance d'approvisionnement, pas une dépendance technique.
+
+Le transfert de parts entre porteurs, seule surface où le contrôle
+d'éligibilité se voit, n'a pas non plus été exercé sur le réseau.
 
 Le chantier ouvert est donc le client et la démonstration. Il passe avant le
 reste parce qu'il lève trois blocages d'un coup : la preuve contre le réseau, la

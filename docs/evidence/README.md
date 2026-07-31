@@ -7,6 +7,7 @@ Planned files:
 
 | File | Deliverable |
 |---|---|
+| `devnet-instance.md` | Live devnet instance: vault on Circle USDC, hook attached (**done**) |
 | `bootstrap.md` | Workspace, pinned toolchain, first devnet deployment (**done**) |
 | `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause (**deployed**) |
 | `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist (**deployed**) |
