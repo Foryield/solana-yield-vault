@@ -25,6 +25,9 @@ custom-panic = []
 anchor-lang = "1.1.2"
 
 [dev-dependencies]
+# Les invariants de l'arithmetique se cherchent sur un espace, pas sur des
+# exemples choisis a la main : meme outil et meme motif que la version Soroban.
+proptest = "1"
 litesvm = "0.10.0"
 solana-keypair = "3.0.1"
 solana-message = "3.0.1"
