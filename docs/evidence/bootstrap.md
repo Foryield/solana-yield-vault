@@ -1,5 +1,10 @@
 # Bootstrap — espace de travail et premier déploiement
 
+> **Dépassé le 2026-07-31 par [`vault-core.md`](./vault-core.md).** Le
+> programme déployé ici était une ossature sans instruction ; le coffre complet
+> occupe désormais le même identifiant. Cette entrée reste pour ce qu'elle
+> prouve : la chaîne d'outillage et le premier déploiement.
+
 ## 2026-07-31 — Ossature déployée sur devnet
 
 **Ce que ça prouve** : la chaîne complète, de la compilation au déploiement sur
@@ -32,6 +37,10 @@ sur le compte de données et le reste en frais. Nettement moins que les 0,795
 estimés : `anchor deploy` dimensionne le compte de données à la taille exacte du
 binaire et non au double. Conséquence à connaître : **toute croissance du
 programme exigera un `solana program extend`** et le dépôt correspondant.
+
+Conséquence effectivement payée le 31/07 : passer de l'ossature au coffre
+complet a coûté 4,017 SOL d'agrandissement, cf. `vault-core.md`. Dimensionner
+d'emblée avec de la marge aurait coûté la même chose, mais en une fois.
 
 **Vérifications locales** : `cargo test` au vert (1 test, celui de
 l'identifiant, généré par Anchor), `cargo fmt --check` propre,

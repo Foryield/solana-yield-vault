@@ -8,7 +8,7 @@ Planned files:
 | File | Deliverable |
 |---|---|
 | `bootstrap.md` | Workspace, pinned toolchain, first devnet deployment (**done**) |
-| `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause |
+| `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause (**deployed**) |
 | `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist |
 | `allocator.md` | CPI into Kamino, marginfi and Jupiter Lend; strategy adapter |
 | `routing.md` | Best-execution swap and rebalancing; devnet and mainnet-fork proofs |
