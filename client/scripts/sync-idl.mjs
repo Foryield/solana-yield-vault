@@ -64,4 +64,33 @@ for (const nom of programmes) {
     console.log(`IDL synchronise : ${nom}`);
   }
 }
+// --- Types TypeScript generes par Anchor ---------------------------------
+//
+// Meme traitement, meme raison : ils portent l'adresse en type litteral, donc
+// la meme valeur dependante de la machine. Elle est neutralisee ; le client
+// injecte la vraie a la construction.
+const ADRESSE_NEUTRE = "11111111111111111111111111111111";
+for (const nom of programmes) {
+  const source = join(racine, "target", "types", `${nom}.ts`);
+  const cible = join(ici, "..", "idl", `${nom}.ts`);
+  if (!existsSync(source)) {
+    console.error(`types absents : ${source}. Lancer \`anchor build\` d'abord.`);
+    process.exit(1);
+  }
+  const attendu = readFileSync(source, "utf8").replace(
+    /"address": "[1-9A-HJ-NP-Za-km-z]+"/,
+    `"address": "${ADRESSE_NEUTRE}"`,
+  );
+  if (verifie) {
+    const present = existsSync(cible) ? readFileSync(cible, "utf8") : "";
+    if (present !== attendu) {
+      console.error(`Types derives : ${nom}. Lancer \`npm run sync:idl\`.`);
+      derive = true;
+    }
+  } else {
+    writeFileSync(cible, attendu);
+    console.log(`Types synchronises : ${nom}`);
+  }
+}
+
 process.exit(derive ? 1 : 0);
