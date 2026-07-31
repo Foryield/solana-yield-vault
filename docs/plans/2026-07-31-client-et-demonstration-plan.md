@@ -1,0 +1,115 @@
+# Client et démonstration — plan
+
+Plan d'exécution du chantier qui rend les programmes utilisables et prouvables
+contre le réseau. Suppose lus la conception et les journaux de preuves des deux
+programmes.
+
+| Version | Date | Changement |
+|---|---|---|
+| 1.0 | 2026-07-31 | Plan initial, 6 tâches |
+
+---
+
+## Pourquoi ce chantier passe avant tout le reste
+
+Les deux programmes sont écrits, testés et déployés. Et pourtant **rien ne les a
+jamais exercés contre le réseau** : aucun coffre initialisé sur devnet, aucun
+mint gouverné par le hook, aucun dépôt. Tout le comportement vit dans un
+simulateur en processus.
+
+Ce n'est pas un défaut des programmes, c'est une dépendance d'outillage : les
+instructions Anchor ne se composent pas à la main depuis une ligne de commande.
+Or cette même dépendance bloque trois choses d'un coup.
+
+Elle bloque la **preuve** : un identifiant de programme déployé ne prouve pas
+qu'un dépôt fonctionne. Elle bloque la **démonstration** des dépôts sur les
+mints réels de Circle, USDC et EURC, qui sont un engagement explicite. Et elle
+bloque la **surface publique** sans laquelle personne d'autre que nous ne peut
+essayer quoi que ce soit.
+
+Un chantier qui lève trois blocages passe avant ceux qui n'en lèvent aucun.
+
+## Décision d'architecture : une seule source de composition
+
+Deux publics, deux surfaces, mais **un seul endroit qui sait composer les
+instructions**.
+
+Les opérations d'administration (attacher le hook à un mint, initialiser un
+coffre, peupler la liste d'autorisation) exigent une clé qui n'a rien à faire
+dans un navigateur. Les opérations de porteur (déposer, retirer) exigent au
+contraire un portefeuille utilisateur. Ce sont deux contextes d'exécution
+irréconciliables.
+
+Deux options. Écrire l'outil d'administration en Rust et la démonstration en
+TypeScript : chaque surface serait idiomatique, mais la dérivation des comptes,
+les graines et l'ordre des arguments seraient écrits **deux fois**, dans deux
+langages, avec deux occasions de diverger. Ou une bibliothèque TypeScript
+partagée, consommée par une ligne de commande côté serveur et par la
+démonstration côté navigateur.
+
+**Retenu : la bibliothèque partagée.** L'IDL est généré par le build et
+TypeScript le consomme sans transcription. Surtout, la dérivation d'un compte
+programmé est exactement le genre de chose qu'on écrit juste une fois et faux
+la seconde.
+
+Découpage : `client/` porte la composition et la dérivation, `ops/` en fait une
+ligne de commande pour l'administration, `app/` en fait la démonstration.
+
+## Ce qui se compose, et ce qui ne se compose pas
+
+Le dépôt et le retrait n'ont **pas** besoin des comptes supplémentaires du hook.
+Une frappe et une destruction ne sont pas des transferts, donc Token-2022
+n'invoque pas le hook. Seul un transfert de parts entre porteurs le déclenche,
+et lui seul exige la résolution.
+
+Conséquence pratique : la démonstration de dépôt et de retrait est simple, et
+c'est la démonstration de **transfert entre porteurs** qui portera la valeur
+d'illustration du contrôle d'éligibilité. Elle vient donc en dernier, une fois
+le reste acquis.
+
+## Tâches
+
+**1. Bibliothèque de composition.** Adresses dérivées, construction des
+instructions des deux programmes, lecture d'état. Sans dépendance à un
+portefeuille ni à un navigateur.
+
+**2. Ligne de commande d'administration.** Attacher le hook à un mint,
+initialiser un coffre, autoriser et révoquer, lire l'état. Clé locale, jamais
+de clé dans le code.
+
+**3. La preuve devnet.** C'est le but du chantier. Un coffre initialisé sur
+l'USDC réel de Circle, un dépôt, un retrait, signatures consignées. Puis la même
+chose sur EURC, qui est l'actif visé en production.
+
+**4. Démonstration web.** Connexion de portefeuille, dépôt, retrait, lecture de
+la position. Export statique, hébergement à trancher.
+
+**5. Transfert de parts et refus.** La démonstration du contrôle d'éligibilité :
+un transfert vers un porteur autorisé aboutit, vers un autre il est refusé. C'est
+la seule surface où le hook se voit.
+
+**6. Provisionnement sans portefeuille.** Le parcours où l'utilisateur ne
+manipule ni extension ni phrase de récupération, sur le modèle du paquet
+équivalent du dépôt Soroban : quatre briques indépendantes, chacune imprimant
+une ligne JSON, appelables en sous-processus depuis n'importe quel dorsal.
+
+## Contraintes d'exploitation à ne pas découvrir en route
+
+**Le SOL devnet est rare.** Le solde est de 3,29 SOL et le robinet plafonne à
+deux requêtes par tranche de huit heures. Initialiser un coffre crée quatre
+comptes, ce qui coûte peu, mais une campagne de plusieurs dizaines de
+portefeuilles demande une trésorerie et un script de distribution. C'est le
+spike S6, qui redevient d'actualité.
+
+**Les actifs de test aussi.** Le robinet de Circle est limité par adresse : on
+l'appelle une fois vers une trésorerie et on distribue depuis là.
+
+**Le CLI Solana pointe par défaut sur le mainnet.** Toute la ligne de commande
+d'administration doit exiger le réseau explicitement plutôt que d'hériter d'une
+configuration ambiante.
+
+## Ce que ce chantier ne fait pas
+
+L'allocateur et le schéma d'événements. Le coffre reste un coffre de garde pure :
+la stratégie se branchera derrière l'interface de dépôt et de retrait sans
+casser le ratio de parts, comme sur la version Soroban.

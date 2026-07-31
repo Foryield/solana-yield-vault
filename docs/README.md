@@ -10,8 +10,10 @@ le code, ses commentaires et les documents racine sont en anglais.
    document de référence : toute décision d'architecture y est tracée avec les
    alternatives écartées.
 1. Plans d'exécution par chantier :
-   [le coffre](./plans/2026-07-31-coffre-implementation.md) (clos) et
-   [le module de conformité](./plans/2026-07-31-hook-conformite-plan.md)
+   [le coffre](./plans/2026-07-31-coffre-implementation.md) (clos),
+   [le module de conformité](./plans/2026-07-31-hook-conformite-plan.md) (clos
+   hors branchement) et
+   [le client et la démonstration](./plans/2026-07-31-client-et-demonstration-plan.md)
    (ouvert).
 2. [Spikes d'ouverture](./plans/2026-07-31-spikes-ouverture.md) — les sept
    questions à trancher avant d'écrire du programme.
@@ -92,5 +94,9 @@ initialisé, aucun dépôt n'y a été exécuté. Tout est éprouvé dans le sim
 Lever cette réserve demande un client capable de composer les instructions,
 c'est-à-dire la démonstration web, qui n'existe pas.
 
-Restent aussi le paquet d'onboarding, l'allocateur, le schéma d'événements et
-les spikes S4 à S7.
+Le chantier ouvert est donc le client et la démonstration. Il passe avant le
+reste parce qu'il lève trois blocages d'un coup : la preuve contre le réseau, la
+démonstration des dépôts sur les mints réels, et la surface publique sans
+laquelle personne d'autre que nous ne peut essayer quoi que ce soit.
+
+Restent ensuite l'allocateur, le schéma d'événements et les spikes S4 à S7.
