@@ -22,8 +22,8 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 | Spike | Sujet | Bloquant | État |
 |---|---|---|---|
 | S1 | Ce qui déclenche réellement le hook de transfert | oui | à faire |
-| S2 | Mesure de couverture sur cible BPF | oui | à faire |
-| S3 | Alignement des versions et amorçage | oui | à faire |
+| S2 | Mesure de couverture sur cible BPF | oui | **rendu** (31/07) |
+| S3 | Alignement des versions et amorçage | oui | **partiel** (31/07) |
 | S4 | Jupiter Lend en CPI | non | à faire |
 | S5 | Signature et diffusion Solana via DFNS | non | à faire |
 | S6 | Trésorerie devnet et runbook de distribution | non | à faire |
@@ -32,6 +32,17 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 S1, S2 et S3 sont ordonnés et conditionnent tout le reste. Les quatre autres
 sont indépendants entre eux et se mènent en parallèle une fois les trois
 premiers rendus.
+
+Deux acquis du 31/07, détaillés dans le document de spikes. La couverture ne
+se mesure que sur de la logique pure compilée côté hôte : le chemin BPF, que
+LiteSVM emprunte, rend zéro pour cent. L'arithmétique du coffre doit donc
+vivre dans des fonctions pures, et la conception a été amendée en ce sens. Les
+versions sont par ailleurs tranchées contre le réseau, Agave 4.1.2 et Anchor
+1.1.2, la documentation d'Anchor ayant deux versions majeures de retard.
+
+S3 reste ouvert sur son déploiement devnet, bloqué par un préalable
+d'exploitation : aucune clé Solana sur la machine, et le CLI pointe par défaut
+sur `mainnet-beta`.
 
 Chaque spike inscrit son verdict, ses adresses et ses signatures directement
 dans le document de spikes, daté. Un spike sans verdict écrit n'a pas eu lieu.
