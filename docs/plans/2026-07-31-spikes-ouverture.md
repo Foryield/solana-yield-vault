@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-07-31 | Verdict S1 : la liste d'autorisation est etanche, aucune voie de mouvement n'echappe au hook ; reserve de methode et sa levee programmee |
 | 1.2 | 2026-07-31 | S3 CLOS : espace de travail amorce, ossature deployee sur devnet, cout reel et pieges d'exploitation consignes |
 | 1.1 | 2026-07-31 | Verdict S2 (la couverture ne porte que sur la logique pure côté hôte, le chemin BPF rend zéro) et verdict partiel S3 (versions tranchées contre le réseau, déploiement devnet restant) |
 | 1.0 | 2026-07-31 | Plan initial, 7 spikes |
@@ -41,6 +42,78 @@ rendre étanche.
 
 **Risque si négligé.** Écrire le hook, le déployer, le documenter, et découvrir
 tard qu'un transfert hérité le contourne.
+
+### Verdict — 2026-07-31
+
+**La liste d'autorisation est étanche. Aucune voie de mouvement n'échappe au
+hook.** L'architecture du module de conformité tient, §3.2 de la conception n'est
+pas à reprendre.
+
+Établi par lecture du processeur de Token-2022, dépôt `solana-program/token-2022`
+épinglé au commit `c572e1d7830f611bc75c4c009e6c9e29ae09f48f` (30 juillet 2026),
+crate `spl-token-2022` 11.0.0.
+
+**Le transfert vérifié invoque le hook.** `program/src/processor.rs`, dans
+`process_transfer` : le programme récupère l'identifiant du hook depuis le mint,
+pose les drapeaux de transfert en cours sur les deux comptes, appelle
+`spl_transfer_hook_interface::onchain::invoke_execute`, puis retire les drapeaux.
+C'est le seul point d'invocation du chemin ordinaire.
+
+**Le transfert hérité ne contourne rien : il échoue.** Le chemin sans mint tombe
+dans une branche qui teste l'extension `TransferHookAccount` sur le compte
+source et refuse avec `TokenError::MintRequiredForTransfer`. Un `Transfer` à
+l'ancienne sur un mint à hook ne passe donc pas en silence, il est rejeté.
+
+**Et l'extension ne peut pas être esquivée**, ce qui était le vrai risque :
+ouvrir un compte dépourvu de `TransferHookAccount` pour retomber dans la branche
+permissive. Impossible. Dans `_process_initialize_account`, le programme calcule
+la taille requise depuis les extensions du mint, **rejette** un compte trop
+petit en `InvalidAccountData`, puis **écrit lui-même** chaque extension requise
+via `try_for_each_required_init_account_extension`. La table de correspondance,
+dans `interface/src/extension/mod.rs`, fonction `required_init_account_extensions`,
+associe explicitement `ExtensionType::TransferHook` à
+`ExtensionType::TransferHookAccount`. Le porteur du compte ne choisit pas.
+
+**Les transferts confidentiels n'y échappent pas non plus.** C'était la surface
+la plus inquiétante, parce qu'elle emprunte un processeur entièrement distinct :
+`program/src/extension/confidential_transfer/processor.rs` invoque le hook selon
+le même motif, avec le même encadrement par les drapeaux de transfert en cours.
+
+**Ni la destruction ni la fermeture de compte ne déplacent de valeur vers un
+tiers.** La destruction réduit l'offre sans destinataire. La fermeture refuse un
+solde non nul (`TokenError::NonNativeHasBalance`). Le délégataire, permanent ou
+ordinaire, emprunte le même `process_transfer` : c'est une variante d'autorité,
+pas un chemin parallèle, donc le hook s'applique.
+
+### Réserve de méthode, et sa levée programmée
+
+Le plan prescrivait une épreuve sur validateur local. La réponse a été obtenue
+par lecture de la source, ce qui est d'une nature différente : un test prouve un
+chemin, la source les prouve tous, mais elle ne prouve pas que le binaire
+déployé correspond à cette source.
+
+Décision prise le 31/07 : ne pas monter de harnais jetable, et transformer
+l'épreuve empirique en **tests permanents du hook**, écrits avec lui. Les mêmes
+voies sont couvertes, par une suite qui reste et protège d'une régression, au
+lieu d'un montage abandonné après usage. Le coût marginal est nul, ces tests
+devant exister de toute façon.
+
+Ce que cette suite devra couvrir, pour que la réserve soit effectivement levée
+et non oubliée :
+
+1. transfert vérifié vers une adresse autorisée : le hook est appelé, le
+   transfert aboutit ;
+2. transfert vérifié vers une adresse non autorisée : le hook refuse, la
+   transaction est annulée ;
+3. transfert hérité sur le mint des parts : échec attendu, et vérifier que le
+   code d'erreur est bien celui du mint manquant, pas un succès silencieux ;
+4. transfert par délégataire vers une adresse non autorisée : refusé ;
+5. fermeture d'un compte au solde non nul : refusée ;
+6. tentative d'ouverture d'un compte de parts sans l'extension requise : la
+   taille calculée doit la rendre impossible.
+
+Le point 3 est le témoin qui compte : c'est celui qui échouerait en silence si
+une version future de Token-2022 assouplissait la garde.
 
 ## S2 — Mesure de couverture sur des programmes Anchor
 
