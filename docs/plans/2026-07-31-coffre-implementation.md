@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-07-31 | Tâche 3 livrée ; deux pièges consignés (pile BPF, test négatif qui passe pour n'importe quelle raison) |
 | 1.2 | 2026-07-31 | Tâche 2 livrée ; le seuil de couverture devra viser le module pur nommément, le total tombant à 87 % dès qu'un gestionnaire existe |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; stratégie de test des tâches 2 à 5 tranchée (le simulateur en processus suffit, rien à vendoriser) |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
@@ -133,6 +134,25 @@ données ailleurs, et un tel compte peut être présent sans être invocable.
 Conséquence : les tâches 2 à 5 se testent intégralement en processus, sans
 validateur local ni fourche du mainnet. Ces derniers restent nécessaires pour le
 seul chemin Jupiter Swap, qui relève de l'allocateur.
+
+## Deux pièges rencontrés à la tâche 3
+
+**La pile BPF déborde silencieusement.** Le dépôt manipule dix comptes dont sept
+structures désérialisées, et l'instruction échouait avant même d'entrer dans le
+gestionnaire, sur un « Access violation in stack frame 5 » qui ne nomme pas sa
+cause. Chaque frame BPF est plafonnée à 4 Ko. Remède : mettre les comptes
+désérialisés sur le tas. À appliquer d'emblée à toute instruction dépassant
+quelques comptes, plutôt que d'attendre l'erreur.
+
+**Un test négatif passe pour n'importe quelle raison.** Au rouge de la tâche 3,
+les deux tests de refus étaient au vert alors que rien n'était implémenté : le
+gestionnaire paniquait sur son `todo!()`, la transaction échouait, et
+`is_err()` s'en satisfaisait. Un `todo!()` non implémenté, une contrainte de
+compte mal câblée et un refus légitime y étaient indiscernables.
+
+Correction : les tests de refus lisent le **code d'erreur** et non le seul
+échec. Le durcissement a été éprouvé par mutation, en traduisant une erreur du
+module pur vers une autre variante : le test tombe, donc il discrimine.
 
 ## Tâches
 
