@@ -50,4 +50,9 @@ pub mod yield_vault {
     pub fn withdraw(ctx: Context<Withdraw>, shares: u64) -> Result<()> {
         instructions::withdraw::handle_withdraw(ctx, shares)
     }
+
+    /// Suspend ou reprend depots et retraits. Administrateur uniquement.
+    pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
+        instructions::pause::handle_set_paused(ctx, paused)
+    }
 }

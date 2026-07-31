@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.5 | 2026-07-31 | Tâche 5 livrée ; la suspension ne gèle pas le marché secondaire des parts, décision explicitée |
 | 1.4 | 2026-07-31 | Tâche 4 livrée ; le retrait intégral laisse à jamais la contrepartie des parts mortes au coffre |
 | 1.3 | 2026-07-31 | Tâche 3 livrée ; deux pièges consignés (pile BPF, test négatif qui passe pour n'importe quelle raison) |
 | 1.2 | 2026-07-31 | Tâche 2 livrée ; le seuil de couverture devra viser le module pur nommément, le total tombant à 87 % dès qu'un gestionnaire existe |
@@ -169,6 +170,19 @@ parts, transférer l'actif. État d'abord, appel externe ensuite.
 **4. Retrait.** Symétrique.
 
 **5. Pause administrateur.**
+
+Périmètre tranché à l'écriture : suspendre bloque dépôts et retraits, et **rien
+d'autre**. Les parts restent transférables entre porteurs éligibles, le hook
+n'ayant pas connaissance de la pause. C'est délibéré : une suspension protège le
+coffre d'une anomalie sur ses propres flux, elle ne gèle pas le marché
+secondaire des parts. Geler ce dernier demanderait de faire lire l'état du
+coffre au hook à chaque transfert, donc de coupler deux programmes que la
+conception a précisément séparés.
+
+Basculer vers l'état courant est admis plutôt que refusé : c'est idempotent, et
+un refus obligerait tout appelant à lire l'état avant d'agir. En situation
+d'incident, on veut pouvoir suspendre sans savoir si quelqu'un vient de le
+faire.
 
 **6. Intégration continue.** Compilation, tests, format, clippy, et seuil de
 couverture sur le module pur.
