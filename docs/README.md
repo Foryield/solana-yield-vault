@@ -23,7 +23,7 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 |---|---|---|---|
 | S1 | Ce qui déclenche réellement le hook de transfert | oui | à faire |
 | S2 | Mesure de couverture sur cible BPF | oui | **rendu** (31/07) |
-| S3 | Alignement des versions et amorçage | oui | **partiel** (31/07) |
+| S3 | Alignement des versions et amorçage | oui | **clos** (31/07) |
 | S4 | Jupiter Lend en CPI | non | à faire |
 | S5 | Signature et diffusion Solana via DFNS | non | à faire |
 | S6 | Trésorerie devnet et runbook de distribution | non | à faire |
@@ -40,9 +40,15 @@ vivre dans des fonctions pures, et la conception a été amendée en ce sens. Le
 versions sont par ailleurs tranchées contre le réseau, Agave 4.1.2 et Anchor
 1.1.2, la documentation d'Anchor ayant deux versions majeures de retard.
 
-S3 reste ouvert sur son déploiement devnet, bloqué par un préalable
-d'exploitation : aucune clé Solana sur la machine, et le CLI pointe par défaut
-sur `mainnet-beta`.
+S3 est clos : l'espace de travail est amorcé et une ossature de programme est
+déployée sur devnet, identifiant et signatures consignés dans
+[`evidence/bootstrap.md`](./evidence/bootstrap.md), qui porte aussi les notes
+d'exploitation utiles à un contributeur (clés, robinet, piège du CLI pointant
+par défaut sur `mainnet-beta`).
+
+**S1 est désormais le seul spike bloquant restant**, et c'est celui dont un
+verdict négatif oblige à reprendre l'architecture. Aucune instruction ne sera
+écrite avant qu'il ait rendu.
 
 Chaque spike inscrit son verdict, ses adresses et ses signatures directement
 dans le document de spikes, daté. Un spike sans verdict écrit n'a pas eu lieu.
