@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-07-31 | Tâche 1 livrée ; stratégie de test des tâches 2 à 5 tranchée (le simulateur en processus suffit, rien à vendoriser) |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
 
 ---
@@ -109,6 +110,28 @@ elle est passée au vert par simple manque de chance d'échantillonnage avant qu
 mutation ne fasse apparaître le contre-exemple. Une propriété qui passe peut être
 fausse et sous-échantillonnée à la fois : d'où le tirage porté à 2 048 cas et la
 séparation du cas de genèse, dont le paramètre n'est plus tiré au sort.
+
+## Stratégie de test des tâches 2 à 5, établie le 31/07
+
+Question tranchée avant d'écrire : le simulateur en processus suffit-il à
+éprouver un coffre dont les parts sont un mint Token-2022 à extension, ou
+faut-il vendoriser des binaires comme la version Soroban l'avait fait pour ses
+venues ?
+
+**Le simulateur suffit, et rien n'est à vendoriser.** Mesuré sur une sonde
+jetable : un `LiteSVM` par défaut embarque Token-2022 et il est réellement
+exécutable, pas seulement présent. La sonde a créé un mint portant l'extension
+de hook de transfert en une transaction, avec le programme de hook correctement
+enregistré dans l'extension à la relecture. Taille du mint dans cette
+configuration : 234 octets.
+
+Vérification faite en l'exerçant, pas en lisant sa présence : le compte du
+programme ne fait que 36 octets, la forme d'un programme évolutif qui porte ses
+données ailleurs, et un tel compte peut être présent sans être invocable.
+
+Conséquence : les tâches 2 à 5 se testent intégralement en processus, sans
+validateur local ni fourche du mainnet. Ces derniers restent nécessaires pour le
+seul chemin Jupiter Swap, qui relève de l'allocateur.
 
 ## Tâches
 
