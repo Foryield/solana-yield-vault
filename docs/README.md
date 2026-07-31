@@ -9,6 +9,10 @@ le code, ses commentaires et les documents racine sont en anglais.
    construit, pourquoi, et l'inventaire devnet sur lequel ça repose. C'est le
    document de référence : toute décision d'architecture y est tracée avec les
    alternatives écartées.
+1. Plans d'exécution par chantier :
+   [le coffre](./plans/2026-07-31-coffre-implementation.md) (clos) et
+   [le module de conformité](./plans/2026-07-31-hook-conformite-plan.md)
+   (ouvert).
 2. [Spikes d'ouverture](./plans/2026-07-31-spikes-ouverture.md) — les sept
    questions à trancher avant d'écrire du programme.
 3. [Journal de preuves](./evidence/) — vide pour l'instant, il se remplit au fil
@@ -65,12 +69,23 @@ huit heures, et ce plafond contraint le rythme des déploiements.
 Chaque spike inscrit son verdict, ses adresses et ses signatures directement
 dans le document de spikes, daté. Un spike sans verdict écrit n'a pas eu lieu.
 
+## Où en est le code
+
+Le coffre est **complet et déployé sur devnet** : dépôt, parts proportionnelles,
+retrait, coupe-circuit. 45 tests, arithmétique pure couverte à 100 %, quatre
+contrôles d'intégration continue obligatoires. Preuves dans
+[`evidence/vault-core.md`](./evidence/vault-core.md).
+
+Réserve écrite dans cette preuve et qu'il faut connaître : aucun coffre n'est
+encore initialisé sur devnet, et aucun dépôt n'y a été exécuté. Le comportement
+est éprouvé dans le simulateur, pas contre le réseau.
+
 ## Ce qui n'est pas encore là
 
-Aucun programme, aucune chaîne d'outillage épinglée, aucune intégration
-continue, aucun déploiement. La démonstration web et le paquet d'onboarding sont
-décrits en section 3.5 de la conception mais n'existent pas.
+Le module de conformité, l'allocateur, le schéma d'événements, la démonstration
+web et le paquet d'onboarding.
 
-Le point à surveiller en priorité : si S1 révèle qu'une voie de transfert
-contourne le hook, la section 3.2 de la conception est à reprendre avant toute
-écriture.
+Le chantier ouvert est le module de conformité. C'est le second livrable, celui
+qui porte l'argument de fond, et le seul dont la surface d'attaque diffère de
+celle du coffre : son instruction d'exécution est publique et appelable hors
+d'un vrai transfert.
