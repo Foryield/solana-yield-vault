@@ -5,6 +5,7 @@ Plan d'exécution du programme `compliance-hook`. Suppose lus la conception
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-07-31 | Tâches 2 et 3 livrées ; deux défauts trouvés par les tests, dont un de harnais |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; identifiant du hook `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63` |
 | 1.0 | 2026-07-31 | Plan initial, 5 tâches |
 
@@ -111,10 +112,39 @@ prouve que la dérivation depuis les données du compte de destination désigne 
 bonne entrée. Seul un vrai transfert le dira, puisque c'est Token-2022 qui
 dérive. C'est la tâche 4.
 
-**2. Gestion de la liste.** Autoriser et révoquer, autorité uniquement.
+**2. Gestion de la liste.** *Livrée le 31/07.* Autoriser et révoquer, autorité
+uniquement, six tests.
 
-**3. `Execute`.** La garde `transferring`, la vérification de l'entrée, les
-erreurs typées.
+Défaut trouvé par le test : la fermeture rend le dépôt à l'autorité, mais celle-ci
+n'était pas déclarée modifiable. Le runtime refuse alors la transaction sur
+« instruction changed the balance of a read-only account », un message qui ne
+nomme pas le compte fautif. Sans un test qui révoque réellement, ce défaut
+n'aurait été trouvé qu'en exploitation.
+
+**3. `Execute`.** *Livrée le 31/07.*
+
+La garde de transfert est éprouvée par un test qui appelle l'instruction
+directement, avec **tous les comptes valides et un destinataire autorisé** :
+seule la garde peut le faire échouer, et le refus attendu est vérifié par son
+code d'erreur. Sans la garde, ce test passerait.
+
+Deux vérifications s'ajoutent à la liste elle-même. L'entrée est revalidée par
+ses graines dans la structure de comptes : si le drapeau de transfert venait à
+être contournable, cette seconde barrière tiendrait encore. Et l'entrée est
+**désérialisée entièrement** plutôt que testée pour son existence : un compte
+détenu par ce programme mais d'un autre type passerait le seul test de
+propriétaire, le discriminant ferme cette porte.
+
+Le discriminant de l'instruction est celui de l'interface, pas celui d'Anchor :
+c'est Token-2022 qui compose l'appel et il ne connaît que l'interface.
+L'attribut `#[interface]` n'existe plus en Anchor 1.1.2, remplacé par un
+`#[instruction(discriminator = ...)]`.
+
+**Piège de harnais rencontré, corrigé dans les deux socles de test.** Deux
+transactions identiques portent la même signature et la seconde est rejetée en
+« AlreadyProcessed ». Un test de ré-autorisation après révocation échouait ainsi
+pour une raison qui n'a rien à voir avec le programme. Le bloc de référence est
+désormais avancé à chaque envoi.
 
 **4. Les six cas du verdict S1**, qui lèvent la réserve de méthode : transfert
 vérifié autorisé, transfert vérifié refusé, transfert hérité, transfert par

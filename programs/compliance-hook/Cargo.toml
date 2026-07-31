@@ -27,8 +27,10 @@ anchor-spl = { version = "1.1.2", features = ["token_2022"] }
 # Versions ALIGNEES sur celles que spl-token-2022 11 tire deja dans l'arbre :
 # une divergence dupliquerait les types et les rendrait incompatibles entre le
 # programme et ses tests.
+spl-discriminator = "0.5"
 spl-tlv-account-resolution = "0.11.1"
 spl-transfer-hook-interface = "2.1.0"
+spl-token-2022 = { version = "11", default-features = false, features = ["no-entrypoint"] }
 
 [dev-dependencies]
 litesvm = "0.10.0"

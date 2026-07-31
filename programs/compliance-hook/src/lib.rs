@@ -22,6 +22,7 @@ pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
+use spl_discriminator::SplDiscriminate;
 
 pub use error::*;
 pub use instructions::*;
@@ -37,5 +38,24 @@ pub mod compliance_hook {
     /// comptes supplementaires que Token-2022 lira a chaque transfert.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         instructions::initialize::handle_initialize(ctx)
+    }
+
+    /// Autorise `holder` a RECEVOIR des parts du mint gouverne.
+    pub fn allow(ctx: Context<Allow>, holder: Pubkey) -> Result<()> {
+        instructions::allowlist::handle_allow(ctx, holder)
+    }
+
+    /// Retire l'autorisation de `holder`. Le compte est ferme, il ne reste
+    /// aucun etat residuel.
+    pub fn revoke(ctx: Context<Revoke>, holder: Pubkey) -> Result<()> {
+        instructions::allowlist::handle_revoke(ctx, holder)
+    }
+
+    /// Appelee par Token-2022 a chaque transfert. Le discriminant est celui de
+    /// l'interface de hook, pas celui d'Anchor : c'est Token-2022 qui compose
+    /// l'appel, il ne connait que l'interface.
+    #[instruction(discriminator = spl_transfer_hook_interface::instruction::ExecuteInstruction::SPL_DISCRIMINATOR_SLICE)]
+    pub fn transfer_hook(ctx: Context<Execute>, amount: u64) -> Result<()> {
+        instructions::execute::handle_execute(ctx, amount)
     }
 }
