@@ -14,6 +14,33 @@ const racine = join(ici, "..", "..");
 const programmes = ["yield_vault", "compliance_hook"];
 const verifie = process.argv.includes("--check");
 
+/**
+ * Identifiants declares dans Anchor.toml, qui est COMMIS et fait donc foi.
+ *
+ * Necessaire parce que le champ `address` de l'IDL genere depend de la
+ * machine : sur une copie fraiche, `anchor build` fabrique de nouvelles paires
+ * de cles de programme, celles-ci etant ignorees par git a juste titre, et
+ * inscrit leurs identifiants dans l'IDL. Le fichier commis porterait alors une
+ * valeur locale, et le controle de derive echouerait sur toute autre machine.
+ *
+ * On reecrit donc l'adresse depuis la source de verite avant de comparer ou
+ * d'ecrire. Corollaire pour le client : ne JAMAIS lire l'identifiant de
+ * programme depuis l'IDL, toujours le passer explicitement.
+ */
+function identifiantsDeclares() {
+  const toml = readFileSync(join(racine, "Anchor.toml"), "utf8");
+  const section = toml.split("[programs.devnet]")[1] ?? "";
+  const ids = {};
+  for (const ligne of section.split("\n")) {
+    if (ligne.startsWith("[")) break;
+    const m = ligne.match(/^\s*([a-z_]+)\s*=\s*"([1-9A-HJ-NP-Za-km-z]+)"/);
+    if (m) ids[m[1]] = m[2];
+  }
+  return ids;
+}
+
+const declares = identifiantsDeclares();
+
 let derive = false;
 for (const nom of programmes) {
   const source = join(racine, "target", "idl", `${nom}.json`);
@@ -22,7 +49,14 @@ for (const nom of programmes) {
     console.error(`IDL absent : ${source}. Lancer \`anchor build\` d'abord.`);
     process.exit(1);
   }
-  const attendu = readFileSync(source, "utf8");
+  const brut = JSON.parse(readFileSync(source, "utf8"));
+  const declare = declares[nom];
+  if (!declare) {
+    console.error(`identifiant absent d'Anchor.toml pour ${nom}`);
+    process.exit(1);
+  }
+  brut.address = declare;
+  const attendu = `${JSON.stringify(brut, null, 2)}\n`;
   if (verifie) {
     const present = existsSync(cible) ? readFileSync(cible, "utf8") : "";
     if (present !== attendu) {
