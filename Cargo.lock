@@ -909,6 +909,7 @@ dependencies = [
  "solana-system-interface 2.0.0",
  "solana-transaction",
  "solana-transaction-error",
+ "spl-discriminator",
  "spl-tlv-account-resolution",
  "spl-token-2022",
  "spl-transfer-hook-interface",

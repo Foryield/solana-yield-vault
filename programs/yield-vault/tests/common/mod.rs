@@ -148,6 +148,11 @@ pub fn envoyer(
     payeur: &Keypair,
     autres: &[&Keypair],
 ) -> Result<(), Box<litesvm::types::FailedTransactionMetadata>> {
+    // Le bloc de reference est avance a chaque envoi. Sans cela, deux
+    // transactions identiques (memes instructions, memes signataires) portent
+    // la meme signature et la seconde est rejetee en « AlreadyProcessed » : un
+    // echec de HARNAIS qu'on lit a tort comme un refus du programme.
+    svm.expire_blockhash();
     let bh = svm.latest_blockhash();
     let msg = Message::new_with_blockhash(instructions, Some(&payeur.pubkey()), &bh);
     let mut signataires: Vec<&Keypair> = vec![payeur];
