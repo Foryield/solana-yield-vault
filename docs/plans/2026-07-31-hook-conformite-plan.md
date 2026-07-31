@@ -5,6 +5,7 @@ Plan d'exécution du programme `compliance-hook`. Suppose lus la conception
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-07-31 | Tâche 4 livrée : la réserve de méthode de S1 est LEVÉE ; un défaut cassant toute délégation trouvé au passage |
 | 1.2 | 2026-07-31 | Tâches 2 et 3 livrées ; deux défauts trouvés par les tests, dont un de harnais |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; identifiant du hook `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63` |
 | 1.0 | 2026-07-31 | Plan initial, 5 tâches |
@@ -146,10 +147,31 @@ transactions identiques portent la même signature et la seconde est rejetée en
 pour une raison qui n'a rien à voir avec le programme. Le bloc de référence est
 désormais avancé à chaque envoi.
 
-**4. Les six cas du verdict S1**, qui lèvent la réserve de méthode : transfert
-vérifié autorisé, transfert vérifié refusé, transfert hérité, transfert par
-délégataire vers un non-autorisé, fermeture de compte non vide, et ouverture
-d'un compte sans l'extension requise.
+**4. Les six cas du verdict S1.** *Livrée le 31/07.* **La réserve de méthode
+est levée** : les conclusions tirées de la lecture du processeur sont désormais
+éprouvées contre de vrais transferts, dans le simulateur.
+
+Le cas 1 est celui qui prouve le plus : il valide la dérivation depuis les
+données du compte de destination, ce qu'aucun test antérieur ne pouvait
+affirmer, puisque c'est Token-2022 qui dérive.
+
+**Un défaut trouvé, et il aurait été invisible.** Le cas 4 échouait bien, mais
+sur un code de contrainte de propriétaire, pas sur le refus de la liste. La
+structure de comptes exigeait que l'autorité de la source en soit le
+propriétaire ; or lors d'un transfert **délégué**, Token-2022 passe le
+délégataire en quatrième compte. Toute délégation était donc cassée, y compris
+vers un destinataire autorisé, et le test ne pouvait pas le voir puisqu'il
+attendait un échec.
+
+Deux corrections. La contrainte est retirée, l'autorisation de l'autorité étant
+de toute façon vérifiée par Token-2022 avant l'appel du hook : la revalider
+était une garde dupliquée, donc une garde qui peut diverger. Et un test de
+contre-épreuve est ajouté, qui exige qu'un transfert délégué vers un porteur
+**autorisé** aboutisse. Sans lui, la même erreur se reproduirait sans bruit.
+
+Leçon transposable : un test négatif qui n'exige pas le code d'erreur ne
+distingue pas le refus voulu d'un accident, et un test négatif sans
+contre-épreuve positive ne voit pas qu'on a tout cassé.
 
 **5. Déploiement devnet et branchement au coffre**, avec un coffre réinitialisé
 sur l'identifiant réel du hook.

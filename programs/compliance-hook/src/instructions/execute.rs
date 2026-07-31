@@ -23,7 +23,17 @@ use anchor_spl::token_interface::{Mint, TokenAccount};
 /// destination.
 #[derive(Accounts)]
 pub struct Execute<'info> {
-    #[account(token::mint = mint, token::authority = owner)]
+    /// AUCUNE contrainte d'autorite ici, et c'est deliberé. Lors d'un transfert
+    /// DELEGUE, Token-2022 passe le delegataire en quatrieme compte, pas le
+    /// proprietaire du compte source. Exiger `token::authority = owner`
+    /// cassait donc toute delegation, y compris vers un destinataire autorise.
+    ///
+    /// Defaut trouve a la tache 4 en exigeant le CODE d'erreur d'un refus :
+    /// le test attendait un echec, il l'obtenait, mais pour la mauvaise raison.
+    /// L'autorisation de l'autorite est de toute facon verifiee par Token-2022
+    /// AVANT l'appel du hook ; la revalider ici serait une garde dupliquee,
+    /// donc une garde qui peut diverger.
+    #[account(token::mint = mint)]
     pub source_token: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub mint: Box<InterfaceAccount<'info, Mint>>,
