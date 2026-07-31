@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "sync:idl": "node scripts/sync-idl.mjs",
-    "check:idl": "node scripts/sync-idl.mjs --check"
+    "check:idl": "node scripts/sync-idl.mjs --check",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
