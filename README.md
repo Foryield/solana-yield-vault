@@ -28,6 +28,10 @@ schema alone, without pulling in the rest.
 
 ## Documentation
 
+Start at [`docs/README.md`](./docs/README.md), which indexes everything and
+tracks what is blocking. Working documents are in French; code, comments and
+root-level documents are in English.
+
 - [Architecture and design decisions](./docs/plans/2026-07-31-solana-yield-vault-design.md)
   (French) — scope, verified devnet inventory, programme architecture, proof
   strategy.
@@ -35,6 +39,8 @@ schema alone, without pulling in the rest.
   time-boxed questions to answer before writing programme code.
 - [Evidence log](./docs/evidence/) — one file per deliverable, every proof
   recorded the day it is produced.
+- [How to contribute](./CONTRIBUTING.md) — where to start, the working rules,
+  and why proofs must name their cluster.
 
 ## Verified devnet inventory
 
