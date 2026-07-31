@@ -6,7 +6,7 @@ programmes.
 
 | Version | Date | Changement |
 |---|---|---|
-| 1.2 | 2026-07-31 | Le champ d'adresse de l'IDL dépend de la machine ; réécrit depuis `declare_id!` et non depuis Anchor.toml, que le build mute |
+| 1.2 | 2026-07-31 | L'IDL commis ne porte plus d'adresse : rien dans l'arbre de travail n'en porte de stable après un build |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; le plan sous-estimait un point : la dérivation d'adresses est INÉVITABLEMENT écrite deux fois, d'où les fixtures croisées |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
 

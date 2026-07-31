@@ -103,18 +103,18 @@ exists, and that directory is gitignored — correctly, since it is key material
 
 Two consequences worth knowing before they bite:
 
-**The IDL's `address` field is machine-dependent.** On a fresh clone the build
-mints new keypairs and writes their ids into the IDL. The sync script therefore
-rewrites that field from the `declare_id!` in the program sources.
+**Nothing in the working tree carries a stable program id after a build.** On a
+fresh clone `anchor build` mints new keypairs and then rewrites everything that
+names an id to match them: `Anchor.toml`, and the `declare_id!` in the sources.
 
-Not from `Anchor.toml`, even though that file is committed: **`anchor build`
-rewrites `Anchor.toml`** to match the keypairs it just generated, so on a fresh
-clone it is mutated by the build moments before anything reads it. `declare_id!`
-is only touched by `anchor keys sync`, an explicit command, and it is what
-determines the compiled binary's id. Anything reading `Anchor.toml` *after* a
-build is reading generated values.
+The committed IDL therefore carries **no address at all** — the sync script
+strips it. An address is not part of an interface: instructions, accounts and
+errors are. Deployed addresses live in `docs/evidence/`, which is written by
+hand and never regenerated.
 
-**Never read a program id from the IDL** — pass it explicitly.
+**Never read a program id from the IDL or from a post-build `Anchor.toml`** —
+pass it explicitly. The client API requires it as an argument for exactly this
+reason.
 
 **A fresh clone cannot redeploy to the existing addresses.** The programs
 already on devnet were deployed from keypairs that live on one machine only.
