@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-07-31 | S3 CLOS : espace de travail amorce, ossature deployee sur devnet, cout reel et pieges d'exploitation consignes |
 | 1.1 | 2026-07-31 | Verdict S2 (la couverture ne porte que sur la logique pure côté hôte, le chemin BPF rend zéro) et verdict partiel S3 (versions tranchées contre le réseau, déploiement devnet restant) |
 | 1.0 | 2026-07-31 | Plan initial, 7 spikes |
 
@@ -209,11 +210,29 @@ Chaîne éprouvée de bout en bout sur le programme témoin : `anchor build` pro
 le `.so` et l'IDL, `cargo test` passe, `cargo llvm-cov` mesure (après la
 correction consignée en S2).
 
-**Reste pour clore S3** : amorcer l'espace de travail du dépôt, puis déployer un
-programme sur devnet et consigner son identifiant. Bloqué sur un préalable
-d'exploitation et non technique : aucune clé Solana n'existe sur la machine, et
-le CLI pointe par défaut sur `mainnet-beta`, ce qui est un piège en soi. Le
-déploiement consomme du SOL, ce qui rejoint S6.
+### Verdict — S3 CLOS le 2026-07-31
+
+Espace de travail amorcé et ossature déployée sur devnet. Identifiant, adresses,
+signatures et coût dans [`docs/evidence/bootstrap.md`](../evidence/bootstrap.md).
+`cargo test`, `cargo fmt --check` et `cargo clippy -- -D warnings` au vert.
+
+Trois acquis d'exploitation à retenir au-delà du spike.
+
+Le coût réel du déploiement est de **0,403 SOL** pour un binaire de 57 Ko,
+contre 0,795 estimés : `anchor deploy` dimensionne le compte de données à la
+taille exacte du binaire, pas au double comme le suppose le calcul de dépôt
+courant. En contrepartie, toute croissance du programme exigera un
+`solana program extend` et le dépôt correspondant. À budgéter pour le vrai
+coffre, nettement plus gros.
+
+`anchor build` **réécrit `Anchor.toml`** et efface les commentaires placés entre
+les sections. Les garder en tête de fichier, sans quoi la justification des
+versions disparaît au premier build.
+
+La distribution en ligne de commande (`solana airdrop`) est bloquée en pratique
+sur devnet, à 2 comme à 0,5 SOL. Le robinet web reste la seule voie, deux
+requêtes par tranche de huit heures. Ce plafond est le vrai résultat de S6 par
+anticipation, et il contraint le rythme des déploiements.
 
 ## S4 — Jupiter Lend en CPI
 
