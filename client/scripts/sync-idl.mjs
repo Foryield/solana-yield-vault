@@ -27,6 +27,19 @@ for (const nom of programmes) {
     const present = existsSync(cible) ? readFileSync(cible, "utf8") : "";
     if (present !== attendu) {
       console.error(`IDL derive : ${nom}. Lancer \`npm run sync:idl\`.`);
+      // Un controle qui dit « ca a change » sans dire QUOI fait perdre plus de
+      // temps qu'il n'en gagne. On nomme les premieres lignes divergentes.
+      const a = present.split("\n");
+      const b = attendu.split("\n");
+      let montrees = 0;
+      for (let i = 0; i < Math.max(a.length, b.length) && montrees < 8; i++) {
+        if (a[i] !== b[i]) {
+          console.error(`  ligne ${i + 1}`);
+          console.error(`    commis : ${JSON.stringify(a[i] ?? "<absente>")}`);
+          console.error(`    genere : ${JSON.stringify(b[i] ?? "<absente>")}`);
+          montrees++;
+        }
+      }
       derive = true;
     }
   } else {
