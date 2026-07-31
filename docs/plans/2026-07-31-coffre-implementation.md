@@ -6,6 +6,7 @@ bloquants.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-07-31 | Tâche 4 livrée ; le retrait intégral laisse à jamais la contrepartie des parts mortes au coffre |
 | 1.3 | 2026-07-31 | Tâche 3 livrée ; deux pièges consignés (pile BPF, test négatif qui passe pour n'importe quelle raison) |
 | 1.2 | 2026-07-31 | Tâche 2 livrée ; le seuil de couverture devra viser le module pur nommément, le total tombant à 87 % dès qu'un gestionnaire existe |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; stratégie de test des tâches 2 à 5 tranchée (le simulateur en processus suffit, rien à vendoriser) |
