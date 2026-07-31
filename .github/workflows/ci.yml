@@ -111,6 +111,15 @@ jobs:
       # se manifeste a l'execution par un compte introuvable.
       - run: npm test
         working-directory: client
+      # La ligne de commande d'administration partage la bibliotheque du
+      # client. Ses tests portent sur ce qu'elle REFUSE de faire sans
+      # configuration explicite, notamment viser le mainnet.
+      - run: npm ci
+        working-directory: ops
+      - run: npm run typecheck
+        working-directory: ops
+      - run: npm test
+        working-directory: ops
 
   coverage:
     name: Couverture du module pur

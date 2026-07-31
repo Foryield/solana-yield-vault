@@ -1,0 +1,25 @@
+{
+  "name": "@foryield/solana-yield-vault-ops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ligne de commande d'administration : attacher, initialiser, autoriser, lire",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "ops": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@foryield/solana-yield-vault-client": "file:../client",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}
