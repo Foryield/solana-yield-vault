@@ -1,0 +1,537 @@
+{
+  "address": "EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63",
+  "metadata": {
+    "name": "compliance_hook",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Hook de transfert Token-2022 : liste d'autorisation des porteurs"
+  },
+  "instructions": [
+    {
+      "name": "allow",
+      "docs": [
+        "Autorise `holder` a RECEVOIR des parts du mint gouverne."
+      ],
+      "discriminator": [
+        60,
+        103,
+        140,
+        65,
+        110,
+        109,
+        147,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.mint",
+                "account": "HookConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  108,
+                  108,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.mint",
+                "account": "HookConfig"
+              },
+              {
+                "kind": "arg",
+                "path": "holder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "holder",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Attache le hook a un mint : cree sa configuration et la liste de",
+        "comptes supplementaires que Token-2022 lira a chaque transfert."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Autorite de la liste d'autorisation. Signe pour eviter qu'on attache un",
+            "hook au nom de quelqu'un qui l'ignore."
+          ],
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "Mint gouverne. Aucune verification de son extension ici : ce programme",
+            "gouverne le mint qu'on lui designe, et c'est le mint qui choisit son",
+            "hook, pas l'inverse."
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "extra_account_meta_list",
+          "docs": [
+            "Liste de comptes supplementaires. Ses graines sont imposees par",
+            "l'interface de hook de transfert : Token-2022 la derive lui-meme pour",
+            "la trouver, elle ne peut donc pas etre choisie ici.",
+            "",
+            "`UncheckedAccount` parce que sa disposition est un format TLV et non un",
+            "compte Anchor : elle est ecrite par la bibliotheque d'interface."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  116,
+                  114,
+                  97,
+                  45,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "revoke",
+      "docs": [
+        "Retire l'autorisation de `holder`. Le compte est ferme, il ne reste",
+        "aucun etat residuel."
+      ],
+      "discriminator": [
+        170,
+        23,
+        31,
+        34,
+        133,
+        173,
+        93,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.mint",
+                "account": "HookConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Modifiable : c'est elle qui recoit le depot du compte ferme. Sans",
+            "`mut`, le runtime refuse la transaction sur « instruction changed the",
+            "balance of a read-only account », un message qui ne nomme pas le compte",
+            "fautif."
+          ],
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "entry",
+          "docs": [
+            "Le depot revient a l'autorite, pas au payeur d'origine : c'est",
+            "l'autorite qui porte la responsabilite de la liste dans la duree."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  108,
+                  108,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.mint",
+                "account": "HookConfig"
+              },
+              {
+                "kind": "arg",
+                "path": "holder"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "holder",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "transfer_hook",
+      "docs": [
+        "Appelee par Token-2022 a chaque transfert. Le discriminant est celui de",
+        "l'interface de hook, pas celui d'Anchor : c'est Token-2022 qui compose",
+        "l'appel, il ne connait que l'interface."
+      ],
+      "discriminator": [
+        105,
+        37,
+        101,
+        197,
+        75,
+        251,
+        102,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "source_token",
+          "docs": [
+            "AUCUNE contrainte d'autorite ici, et c'est deliberé. Lors d'un transfert",
+            "DELEGUE, Token-2022 passe le delegataire en quatrieme compte, pas le",
+            "proprietaire du compte source. Exiger `token::authority = owner`",
+            "cassait donc toute delegation, y compris vers un destinataire autorise.",
+            "",
+            "Defaut trouve a la tache 4 en exigeant le CODE d'erreur d'un refus :",
+            "le test attendait un echec, il l'obtenait, mais pour la mauvaise raison.",
+            "L'autorisation de l'autorite est de toute facon verifiee par Token-2022",
+            "AVANT l'appel du hook ; la revalider ici serait une garde dupliquee,",
+            "donc une garde qui peut diverger."
+          ]
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "destination_token"
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "extra_account_meta_list",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  116,
+                  114,
+                  97,
+                  45,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination_entry",
+          "docs": [
+            "Entree de liste du DESTINATAIRE. Son adresse est derivee par Token-2022",
+            "depuis les donnees du compte de destination, donc l'appelant ne peut pas",
+            "en designer une autre. La contrainte de graines la revalide ici : si le",
+            "drapeau de transfert venait a etre contournable, cette seconde barriere",
+            "tiendrait encore.",
+            "",
+            "`UncheckedAccount` deliberement : quand l'entree n'existe pas, le compte",
+            "derive est vide, et on veut rendre « non autorise » plutot que « compte",
+            "non initialise ». Le refus doit nommer sa cause metier.",
+            ""
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  108,
+                  108,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              },
+              {
+                "kind": "account",
+                "path": "destination_token.owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AllowlistEntry",
+      "discriminator": [
+        42,
+        59,
+        88,
+        1,
+        124,
+        138,
+        92,
+        236
+      ]
+    },
+    {
+      "name": "HookConfig",
+      "discriminator": [
+        137,
+        155,
+        101,
+        95,
+        138,
+        72,
+        8,
+        182
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ExtraAccountMetaInvalid",
+      "msg": "Liste de comptes supplementaires invalide"
+    },
+    {
+      "code": 6001,
+      "name": "NotAllowed",
+      "msg": "Le destinataire n'est pas sur la liste d'autorisation"
+    },
+    {
+      "code": 6002,
+      "name": "NotATransfer",
+      "msg": "Cette instruction n'est appelable que par Token-2022, pendant un transfert"
+    }
+  ],
+  "types": [
+    {
+      "name": "AllowlistEntry",
+      "docs": [
+        "Entree de liste d'autorisation.",
+        "",
+        "L'EXISTENCE du compte vaut autorisation ; son contenu n'est la que pour",
+        "l'auditabilite. Revoquer, c'est fermer le compte, ce qui rend son depot a",
+        "l'autorite et ne laisse aucun etat residuel a interpreter."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "holder",
+            "docs": [
+              "Porteur autorise a RECEVOIR des parts de ce mint."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "HookConfig",
+      "docs": [
+        "Configuration du hook pour un mint donne.",
+        "",
+        "Le hook ne connait PAS le coffre : il gouverne un mint, quel qu'il soit.",
+        "C'est ce qui permet a un protocole sans lien avec ce projet de le forker",
+        "seul."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "docs": [
+              "Mint gouverne. Immuable."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Seule habilitee a autoriser et revoquer. Distincte de l'administrateur",
+              "du coffre : mettre a jour une eligibilite et suspendre un coffre sont",
+              "deux gestes de nature differente, exerces par des personnes",
+              "differentes."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

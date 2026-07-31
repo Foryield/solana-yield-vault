@@ -1,0 +1,25 @@
+{
+  "name": "@foryield/solana-yield-vault-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Composition des instructions et derivation des adresses des deux programmes",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "sync:idl": "node scripts/sync-idl.mjs",
+    "check:idl": "node scripts/sync-idl.mjs --check"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

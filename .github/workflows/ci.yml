@@ -71,6 +71,47 @@ jobs:
       - run: anchor build
       - run: cargo test --workspace
 
+  client:
+    name: Client TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Chaine Agave
+        run: |
+          set -euo pipefail
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Anchor (binaire precompile)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/anchor" \
+            "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/anchor"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: anchor build
+      - run: npm ci
+        working-directory: client
+      # Les IDL sont COMMIS (un navigateur ne lit pas `target/`, ignore par
+      # git) donc ils peuvent deriver. Ce controle echoue si le depot ne
+      # correspond plus aux programmes. Meme motif que « Versions alignees ».
+      - run: npm run check:idl
+        working-directory: client
+      - run: npm run typecheck
+        working-directory: client
+      # Ces tests confrontent la derivation d'adresses TypeScript a celle,
+      # RUST, des programmes. Une divergence ne se voit pas a la compilation et
+      # se manifeste a l'execution par un compte introuvable.
+      - run: npm test
+        working-directory: client
+
   coverage:
     name: Couverture du module pur
     runs-on: ubuntu-latest

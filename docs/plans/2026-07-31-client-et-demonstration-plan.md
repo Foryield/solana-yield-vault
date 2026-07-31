@@ -6,6 +6,7 @@ programmes.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-07-31 | Tâche 1 livrée ; le plan sous-estimait un point : la dérivation d'adresses est INÉVITABLEMENT écrite deux fois, d'où les fixtures croisées |
 | 1.0 | 2026-07-31 | Plan initial, 6 tâches |
 
 ---
@@ -69,9 +70,27 @@ le reste acquis.
 
 ## Tâches
 
-**1. Bibliothèque de composition.** Adresses dérivées, construction des
-instructions des deux programmes, lecture d'état. Sans dépendance à un
-portefeuille ni à un navigateur.
+**1. Bibliothèque de composition.** *Dérivation d'adresses livrée le 31/07*,
+six tests. La construction des instructions et la lecture d'état suivent.
+
+**Le plan sous-estimait un point.** « Une seule source de composition » vaut
+pour les trois surfaces TypeScript, mais la dérivation d'adresses est
+inévitablement écrite **deux fois** : les programmes la font en Rust dans leurs
+contraintes de comptes, le client la refait en TypeScript. Il n'y a pas moyen de
+l'éviter, seulement de la surveiller.
+
+D'où les fixtures croisées : les tests Rust figent les adresses attendues pour
+un mint fixe, les tests TypeScript relisent le même fichier et comparent à leur
+propre dérivation. Les deux implémentations sont confrontées à chaque exécution
+plutôt que supposées d'accord. Éprouvé par mutation : une lettre retirée à une
+graine fait tomber le test, là où le défaut ne serait apparu à l'exécution que
+sous forme d'un compte introuvable, l'un des symptômes les plus opaques de
+Solana.
+
+Les IDL sont **commis** dans le paquet, un navigateur ne pouvant pas lire
+`target/` qui est ignoré par git. Un fichier commis dérive, donc un contrôle
+dédié échoue si le dépôt ne correspond plus aux programmes, et l'intégration
+continue l'exerce. Même motif que le contrôle d'alignement des versions.
 
 **2. Ligne de commande d'administration.** Attacher le hook à un mint,
 initialiser un coffre, autoriser et révoquer, lire l'état. Clé locale, jamais
