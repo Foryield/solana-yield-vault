@@ -80,12 +80,17 @@ Réserve écrite dans cette preuve et qu'il faut connaître : aucun coffre n'est
 encore initialisé sur devnet, et aucun dépôt n'y a été exécuté. Le comportement
 est éprouvé dans le simulateur, pas contre le réseau.
 
+Le module de conformité est **écrit et déployé** lui aussi : liste
+d'autorisation par PDA, garde interdisant l'appel hors transfert, et les six cas
+du spike S1 éprouvés contre de vrais transferts. Preuves dans
+[`evidence/compliance-hook.md`](./evidence/compliance-hook.md).
+
 ## Ce qui n'est pas encore là
 
-Le module de conformité, l'allocateur, le schéma d'événements, la démonstration
-web et le paquet d'onboarding.
+Aucun mint n'est gouverné par le hook sur devnet, aucun coffre n'y est
+initialisé, aucun dépôt n'y a été exécuté. Tout est éprouvé dans le simulateur.
+Lever cette réserve demande un client capable de composer les instructions,
+c'est-à-dire la démonstration web, qui n'existe pas.
 
-Le chantier ouvert est le module de conformité. C'est le second livrable, celui
-qui porte l'argument de fond, et le seul dont la surface d'attaque diffère de
-celle du coffre : son instruction d'exécution est publique et appelable hors
-d'un vrai transfert.
+Restent aussi le paquet d'onboarding, l'allocateur, le schéma d'événements et
+les spikes S4 à S7.

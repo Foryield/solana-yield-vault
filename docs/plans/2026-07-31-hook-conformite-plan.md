@@ -5,6 +5,7 @@ Plan d'exécution du programme `compliance-hook`. Suppose lus la conception
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-07-31 | Tâche 5 : hook déployé sur devnet ; reste le branchement à un mint réel, qui demande un client |
 | 1.3 | 2026-07-31 | Tâche 4 livrée : la réserve de méthode de S1 est LEVÉE ; un défaut cassant toute délégation trouvé au passage |
 | 1.2 | 2026-07-31 | Tâches 2 et 3 livrées ; deux défauts trouvés par les tests, dont un de harnais |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; identifiant du hook `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63` |
@@ -173,8 +174,24 @@ Leçon transposable : un test négatif qui n'exige pas le code d'erreur ne
 distingue pas le refus voulu d'un accident, et un test négatif sans
 contre-épreuve positive ne voit pas qu'on a tout cassé.
 
-**5. Déploiement devnet et branchement au coffre**, avec un coffre réinitialisé
-sur l'identifiant réel du hook.
+**5. Déploiement devnet et branchement au coffre.** *Déploiement fait le
+31/07*, identifiant `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63`, preuves
+dans [`evidence/compliance-hook.md`](../evidence/compliance-hook.md).
+
+Le contrôle qui compte : le discriminant de l'instruction d'exécution publié
+dans l'IDL est exactement `sha256("spl-transfer-hook-interface:execute")[0..8]`,
+recalculé à part. Sans cette égalité, Token-2022 ne trouverait pas
+l'instruction et le hook serait inerte tout en paraissant déployé.
+
+Dimensionnement à une fois et demie le binaire, et non au double. Le coffre
+avait été déployé à la taille exacte d'une ossature vide, ce qui a coûté 4,017
+SOL d'agrandissement quand il s'est rempli ; le hook, lui, est fonctionnellement
+complet, donc une marge au double aurait immobilisé de la place inutile.
+
+**Reste le branchement** : attacher le hook à un mint réel, peupler une liste,
+et initialiser un coffre qui le désigne. Cela demande un client capable de
+composer ces instructions, donc la démonstration web. Ce n'est pas un manque du
+module, c'est une dépendance d'outillage.
 
 ## Ce que ce chantier ne fait pas
 
