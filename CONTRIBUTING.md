@@ -73,9 +73,43 @@ monter les actifs [...]
 
 ## Toolchain
 
-Not pinned yet — that is S3's job. Do not install versions from the Anchor
-installation page without checking them against the live devnet runtime: that
-page currently advertises an Agave version several major releases behind.
+`Anchor.toml` is the single source of truth for the version triple, and CI
+fails if the workflow drifts from it. Do not install versions from the Anchor
+installation page: it advertises an Agave release two major versions behind
+what devnet actually runs.
 
-Once S3 lands, `Anchor.toml` is the single source of truth for the version
-triple, and this section will point at it.
+```bash
+sh -c "$(curl -sSfL https://release.anza.xyz/v4.1.2/install)"   # Agave
+# Anchor: prebuilt binary from the v1.1.2 release, or `avm install 1.1.2`
+solana config set --url devnet   # the CLI defaults to mainnet-beta
+```
+
+That last line is not optional. The CLI ships pointing at mainnet-beta, and a
+deploy command run by mistake there costs real SOL.
+
+## Running the checks
+
+```bash
+anchor build          # must precede the tests: they load the .so
+cargo test --workspace
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+```
+
+## About the coverage gate
+
+CI enforces **100 % line coverage on the pure logic**, and nothing else. This
+is not laxity, it is the only threshold that means anything here.
+
+The programs execute as BPF inside the test simulator, so a host-side coverage
+instrument never sees them: measured on a witness program, the BPF path returns
+**zero per cent** while the same logic extracted into a pure function measures
+fully. The repository total fell from 87 % to 46 % across five instructions
+without a single line becoming untested. A threshold on that total would have
+been loosened at every task until it guaranteed nothing.
+
+The filter therefore names the files that only ever run in BPF, rather than
+naming the pure module. A **new** pure module enters the measurement by
+default; adding a handler to the filter is a visible decision in review, never
+a silent omission.
+
