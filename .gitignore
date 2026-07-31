@@ -24,3 +24,6 @@ out/
 .env.*.local
 
 .DS_Store
+
+# Le paquet client est verrouille par son package-lock, commis.
+client/dist/

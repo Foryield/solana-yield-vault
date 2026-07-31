@@ -1,0 +1,580 @@
+{
+  "metadata": {
+    "name": "yield_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Coffre de rendement : depot, parts Token-2022, retrait, pause"
+  },
+  "instructions": [
+    {
+      "name": "deposit",
+      "docs": [
+        "Depose `amount` d'actif et emet les parts correspondantes."
+      ],
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "depositor",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.deposit_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "shares_mint",
+          "docs": [
+            "Muté : l'offre change a chaque emission de parts."
+          ],
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_assets",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dead_shares",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  97,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "depositor_assets",
+          "docs": [
+            "Compte d'actif du deposant. L'autorite est verifiee par le programme de",
+            "jeton lors du transfert, pas ici."
+          ],
+          "writable": true
+        },
+        {
+          "name": "depositor_shares",
+          "docs": [
+            "Compte de parts du deposant."
+          ],
+          "writable": true
+        },
+        {
+          "name": "shares_token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "deposit_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Cree le coffre, le mint des parts et les comptes de detention.",
+        "`hook_program` est fige ici : il ne changera plus."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "deposit_mint",
+          "docs": [
+            "Actif depose. Son programme de jeton est laisse ouvert : USDC et EURC",
+            "devnet sont detenus par le programme SPL CLASSIQUE, pas par Token-2022."
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "deposit_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "shares_mint",
+          "docs": [
+            "Mint des parts, cree ICI plutot que fourni de l'exterieur : un mint",
+            "fourni exigerait de valider son extension, son autorite et ses",
+            "decimales, et toute validation oubliee serait une faille. Le creer",
+            "supprime la surface.",
+            "",
+            "Autorite du hook mise a `None` : le programme de hook est immuable, donc",
+            "personne ne doit pouvoir le changer apres coup, pas meme l'admin."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_assets",
+          "docs": [
+            "Detient l'actif depose. Autorite : le PDA du coffre."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dead_shares",
+          "docs": [
+            "Recoit les parts mortes au premier depot. Aucune instruction du",
+            "programme n'en sort quoi que ce soit : le verrouillage tient a",
+            "l'absence de chemin, pas a une garde qu'on pourrait contourner."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  97,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "shares_token_program",
+          "docs": [
+            "Token-2022 impose pour les parts : l'extension de hook n'existe pas",
+            "ailleurs."
+          ],
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "deposit_token_program",
+          "docs": [
+            "Programme de jeton de l'actif depose, classique ou Token-2022."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "hook_program",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "docs": [
+        "Suspend ou reprend depots et retraits. Administrateur uniquement."
+      ],
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.deposit_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Detruit `shares` parts et restitue l'actif au pro-rata."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "holder",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.deposit_mint",
+                "account": "Vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deposit_mint",
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "shares_mint",
+          "docs": [
+            "Mute : l'offre baisse a chaque destruction de parts."
+          ],
+          "writable": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault_assets",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  115,
+                  115,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "holder_assets",
+          "writable": true
+        },
+        {
+          "name": "holder_shares",
+          "writable": true
+        },
+        {
+          "name": "shares_token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "deposit_token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "Le coffre est suspendu"
+    },
+    {
+      "code": 6001,
+      "name": "AmountMustBePositive",
+      "msg": "Le montant depose doit etre positif"
+    },
+    {
+      "code": 6002,
+      "name": "DepositTooSmall",
+      "msg": "Depot trop petit : il n'emettrait aucune part"
+    },
+    {
+      "code": 6003,
+      "name": "SharesMustBePositive",
+      "msg": "Le nombre de parts retirees doit etre positif"
+    },
+    {
+      "code": 6004,
+      "name": "SharesExceedSupply",
+      "msg": "Retrait portant sur plus de parts qu'il n'en existe"
+    },
+    {
+      "code": 6005,
+      "name": "WithdrawTooSmall",
+      "msg": "Retrait trop petit : il ne rendrait aucune unite d'actif"
+    },
+    {
+      "code": 6006,
+      "name": "VaultInsolvent",
+      "msg": "Des parts existent mais le coffre ne detient plus aucun actif"
+    },
+    {
+      "code": 6007,
+      "name": "MathOverflow",
+      "msg": "Debordement arithmetique"
+    }
+  ],
+  "types": [
+    {
+      "name": "Vault",
+      "docs": [
+        "Coffre. Tout y est immuable apres l'initialisation sauf l'etat de pause :",
+        "changer d'actif, de mint de parts ou de programme de hook exige un",
+        "redeploiement, meme convention que le pool fixe a l'initialisation sur la",
+        "version Soroban.",
+        "",
+        "Ce que ce compte ne porte PAS, deliberement : ni total des parts, ni solde.",
+        "Les parts sont un mint Token-2022, donc leur comptabilite appartient au",
+        "programme de jeton ; dupliquer un total ici creerait une seconde verite,",
+        "donc une divergence possible."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Seul habilite a suspendre et lever la suspension."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit_mint",
+            "docs": [
+              "Mint de l'actif depose. Jeton SPL classique en pratique (USDC, EURC)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "shares_mint",
+            "docs": [
+              "Mint des parts, Token-2022 portant l'extension de hook de transfert."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "hook_program",
+            "docs": [
+              "Programme de hook impose aux transferts de parts. Immuable."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "docs": [
+              "Coupe-circuit : depots et retraits rejetes tant qu'il est leve."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

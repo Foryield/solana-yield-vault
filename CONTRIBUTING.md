@@ -96,6 +96,32 @@ cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
 ```
 
+## About program keypairs
+
+`anchor build` generates a program keypair under `target/deploy/` when none
+exists, and that directory is gitignored — correctly, since it is key material.
+
+Two consequences worth knowing before they bite:
+
+**Nothing in the working tree carries a stable program id after a build.** On a
+fresh clone `anchor build` mints new keypairs and then rewrites everything that
+names an id to match them: `Anchor.toml`, and the `declare_id!` in the sources.
+
+The committed IDL therefore carries **no address at all** — the sync script
+strips it. An address is not part of an interface: instructions, accounts and
+errors are. Deployed addresses live in `docs/evidence/`, which is written by
+hand and never regenerated.
+
+**Never read a program id from the IDL or from a post-build `Anchor.toml`** —
+pass it explicitly. The client API requires it as an argument for exactly this
+reason.
+
+**A fresh clone cannot redeploy to the existing addresses.** The programs
+already on devnet were deployed from keypairs that live on one machine only.
+Losing them does not break upgrades — those need the upgrade authority, not the
+program keypair — but it does make a from-scratch redeploy to the same
+addresses impossible. Back them up outside the machine.
+
 ## About the coverage gate
 
 CI enforces **100 % line coverage on the pure logic**, and nothing else. This
