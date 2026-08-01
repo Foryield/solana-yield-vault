@@ -7,6 +7,7 @@ Planned files:
 
 | File | Deliverable |
 |---|---|
+| `depot-retrait-devnet.md` | Deposit and withdrawal on real Circle USDC and EURC (**done**) |
 | `devnet-instance.md` | Live devnet instance: vault on Circle USDC, hook attached (**done**) |
 | `bootstrap.md` | Workspace, pinned toolchain, first devnet deployment (**done**) |
 | `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause (**deployed**) |

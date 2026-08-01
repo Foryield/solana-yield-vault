@@ -91,14 +91,18 @@ Une **instance vivante** existe sur devnet depuis le 01/08 : un coffre sur
 l'USDC de Circle, dont le mint de parts est gouverné par le hook. Adresses et
 signatures dans [`evidence/devnet-instance.md`](./evidence/devnet-instance.md).
 
+**Le cycle complet est prouvé contre le réseau** depuis le 01/08, sur les deux
+actifs de Circle : dépôt, parts proportionnelles, retrait partiel, retrait
+intégral. Signatures dans
+[`evidence/depot-retrait-devnet.md`](./evidence/depot-retrait-devnet.md).
+
 ## Ce qui n'est pas encore là
 
-Aucun dépôt n'a été exécuté contre le réseau : le compte d'actif du coffre est
-vide. Déposer demande de l'USDC de test, dont le robinet est limité par adresse.
-C'est une dépendance d'approvisionnement, pas une dépendance technique.
-
 Le transfert de parts entre porteurs, seule surface où le contrôle
-d'éligibilité se voit, n'a pas non plus été exercé sur le réseau.
+d'éligibilité se voit, n'est exercé qu'en simulateur.
+
+Et il n'existe aucune surface publique : tout passe par une ligne de commande
+qui signe avec une clé locale. C'est ce qui reste à construire.
 
 Le chantier ouvert est donc le client et la démonstration. Il passe avant le
 reste parce qu'il lève trois blocages d'un coup : la preuve contre le réseau, la
