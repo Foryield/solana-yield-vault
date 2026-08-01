@@ -1,11 +1,11 @@
-# Bootstrap — espace de travail et premier déploiement
+# Bootstrap - espace de travail et premier déploiement
 
 > **Dépassé le 2026-07-31 par [`vault-core.md`](./vault-core.md).** Le
 > programme déployé ici était une ossature sans instruction ; le coffre complet
 > occupe désormais le même identifiant. Cette entrée reste pour ce qu'elle
 > prouve : la chaîne d'outillage et le premier déploiement.
 
-## 2026-07-31 — Ossature déployée sur devnet
+## 2026-07-31 - Ossature déployée sur devnet
 
 **Ce que ça prouve** : la chaîne complète, de la compilation au déploiement sur
 devnet, fonctionne avec les versions retenues au spike S3. Le programme est une

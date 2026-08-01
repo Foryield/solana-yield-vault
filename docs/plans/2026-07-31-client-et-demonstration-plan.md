@@ -1,4 +1,4 @@
-# Client et démonstration — plan
+# Client et démonstration - plan
 
 Plan d'exécution du chantier qui rend les programmes utilisables et prouvables
 contre le réseau. Suppose lus la conception et les journaux de preuves des deux

@@ -1,4 +1,4 @@
-# Documentation — point d'entrée
+# Documentation - point d'entrée
 
 Ce dossier contient les documents de travail du projet. Ils sont en français ;
 le code, ses commentaires et les documents racine sont en anglais.
@@ -9,7 +9,7 @@ ce qui reste, dans quel ordre, et ce qu'il ne faut pas redécouvrir.
 
 ## Par où commencer
 
-1. [Conception](./plans/2026-07-31-solana-yield-vault-design.md) — ce qu'on
+1. [Conception](./plans/2026-07-31-solana-yield-vault-design.md) - ce qu'on
    construit, pourquoi, et l'inventaire devnet sur lequel ça repose. C'est le
    document de référence : toute décision d'architecture y est tracée avec les
    alternatives écartées.
@@ -19,9 +19,9 @@ ce qui reste, dans quel ordre, et ce qu'il ne faut pas redécouvrir.
    hors branchement) et
    [le client et la démonstration](./plans/2026-07-31-client-et-demonstration-plan.md)
    (ouvert).
-2. [Spikes d'ouverture](./plans/2026-07-31-spikes-ouverture.md) — les sept
+2. [Spikes d'ouverture](./plans/2026-07-31-spikes-ouverture.md) - les sept
    questions à trancher avant d'écrire du programme.
-3. [Journal de preuves](./evidence/) — vide pour l'instant, il se remplit au fil
+3. [Journal de preuves](./evidence/) - vide pour l'instant, il se remplit au fil
    des déploiements et des transactions.
 
 Les règles de travail (plan avant code, tout par PR, preuve le jour même) sont
