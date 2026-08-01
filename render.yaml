@@ -14,7 +14,7 @@
 # `rootDir: web`, cette installation automatique declenchait le `prepare` du
 # client alors que `client/node_modules` n'existait pas encore : le binaire
 # etait trouve, ses types non, et la construction s'arretait sur un
-# « Cannot find type definition file for 'node' » qui ne nomme rien de la vraie
+# "Cannot find type definition file for 'node'" qui ne nomme rien de la vraie
 # cause. Constate au premier deploiement, le 01/08.
 #
 # La racine du depot ne porte pas de package.json : rien n'y est installe
@@ -33,8 +33,24 @@ services:
       # defaut de Render, Node 24, que rien n'a jamais eprouve ici.
       - key: NODE_VERSION
         value: "22"
+      # LE SEUL CHAMP QUI NE VIT PAS ICI, et c'est delibere.
+      #
+      # Le point d'acces public de devnet plafonne a 100 requetes par tranche
+      # de 10 secondes et par IP, 40 pour un meme appel, et la documentation
+      # Solana dit qu'il n'est pas destine aux applications. Quelques
+      # rechargements suffisent a le franchir. La demonstration vise donc un
+      # point d'acces dedie, dont l'URL porte une cle.
+      #
+      # Cette cle n'a rien a faire dans un depot public : elle y resterait dans
+      # l'historique a jamais. `sync: false` la fait saisir au tableau de bord
+      # Render, qui l'ignore ensuite a chaque synchronisation du blueprint.
+      #
+      # Elle finit malgre tout dans le paquet servi, un export statique n'ayant
+      # pas de serveur pour la cacher. C'est pourquoi elle DOIT etre restreinte
+      # a son domaine d'origine chez le fournisseur. Sans cette restriction,
+      # cette configuration ne vaut rien.
       - key: NEXT_PUBLIC_SOLANA_RPC_URL
-        value: https://api.devnet.solana.com
+        sync: false
       - key: NEXT_PUBLIC_VAULT_PROGRAM_ID
         value: 2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw
       - key: NEXT_PUBLIC_HOOK_PROGRAM_ID
