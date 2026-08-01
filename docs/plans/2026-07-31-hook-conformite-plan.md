@@ -1,4 +1,4 @@
-# Module de conformité Token-2022 — plan
+# Module de conformité Token-2022 - plan
 
 Plan d'exécution du programme `compliance-hook`. Suppose lus la conception
 (`2026-07-31-solana-yield-vault-design.md`, §3.2) et le verdict du spike S1.
@@ -113,6 +113,10 @@ Réserve inchangée, et écrite dans l'en-tête du fichier de tests : rien ici n
 prouve que la dérivation depuis les données du compte de destination désigne la
 bonne entrée. Seul un vrai transfert le dira, puisque c'est Token-2022 qui
 dérive. C'est la tâche 4.
+
+> **Levée le 2026-08-01 contre devnet** : deux destinataires, le même code, deux
+> verdicts opposés. Une dérivation qui aurait visé à côté aurait refusé les
+> deux. Voir `docs/evidence/compliance-hook.md`.
 
 **2. Gestion de la liste.** *Livrée le 31/07.* Autoriser et révoquer, autorité
 uniquement, six tests.

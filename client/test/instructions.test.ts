@@ -15,6 +15,7 @@ import {
   instructionAttacher,
   instructionAutoriser,
   instructionRevoquer,
+  instructionTransfert,
 } from "../src/hook.js";
 
 /**
@@ -28,6 +29,7 @@ import {
  */
 
 const SPL_TOKEN = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const TOKEN_2022 = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
 /** Fournisseur inerte : rien n'est signe ni envoye, seule la composition est testee. */
 function fournisseur(): AnchorProvider {
@@ -163,5 +165,60 @@ describe("comptes supplementaires d'un transfert de parts", () => {
       hookFixture.extraAccountMetas,
       hookFixture.allowlistEntry,
     ]);
+  });
+});
+
+describe("transfert de parts", () => {
+  const source = Keypair.generate().publicKey;
+  const destination = Keypair.generate().publicKey;
+  const emetteur = Keypair.generate().publicKey;
+  const destinataire = new PublicKey(hookFixture.holder);
+
+  function transfert() {
+    return instructionTransfert(
+      ctxHook(),
+      source,
+      destination,
+      emetteur,
+      destinataire,
+      4_000n,
+      6,
+    );
+  }
+
+  it("est un transfert VERIFIE, sur Token-2022", () => {
+    // Le transfert herite, qui ne passe pas le mint, est rejete par Token-2022
+    // faute de savoir quel hook appeler : composer autre chose que
+    // `transfer_checked` rendrait l'instruction inutilisable.
+    expect(transfert().programId.toBase58()).toBe(TOKEN_2022.toBase58());
+    expect(transfert().keys.slice(0, 4).map((k) => k.pubkey.toBase58())).toEqual([
+      source.toBase58(),
+      hookFixture.mint,
+      destination.toBase58(),
+      emetteur.toBase58(),
+    ]);
+  });
+
+  it("joint les trois comptes du hook APRES ceux du transfert", () => {
+    // Token-2022 resout la liste contre les comptes supplementaires par leur
+    // RANG. Un compte glisse d'une place produit une erreur qui ne nomme
+    // jamais le compte fautif.
+    const cles = transfert().keys;
+    expect(cles.length).toBe(7);
+    expect(cles.slice(4).map((k) => k.pubkey.toBase58())).toEqual([
+      hookFixture.programId,
+      hookFixture.extraAccountMetas,
+      hookFixture.allowlistEntry,
+    ]);
+    expect(cles.slice(4).every((k) => !k.isSigner && !k.isWritable)).toBe(true);
+  });
+
+  it("ne fait signer que l'emetteur", () => {
+    // Le destinataire ne signe rien : c'est ce qui permet d'envoyer des parts a
+    // un porteur dont on n'a ni la cle ni le SOL.
+    const signataires = transfert()
+      .keys.filter((k) => k.isSigner)
+      .map((k) => k.pubkey.toBase58());
+    expect(signataires).toEqual([emetteur.toBase58()]);
   });
 });

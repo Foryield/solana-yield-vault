@@ -1,9 +1,10 @@
-# Point de reprise — 1er août 2026
+# Point de reprise - 1er août 2026
 
 Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-08-01 | Le transfert de parts est fait : il sort de la liste, deux corrections d'exploitation avec lui |
 | 1.1 | 2026-08-01 | Section exploitation corrigée : le risque était mal identifié, il porte sur l'autorité et non sur les paires de clés de programme |
 | 1.0 | 2026-08-01 | Premier point de reprise, fin du cycle coffre + hook + preuve devnet |
 
@@ -12,8 +13,9 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 91 tests, six contrôles d'intégration continue obligatoires,
-22 pull requests.
+actifs réels**. 96 tests recomptés le 01/08 (66 en Rust, 20 au client, 10 à la
+ligne de commande), six contrôles d'intégration continue obligatoires,
+22 pull requests fusionnées.
 
 | Élément | Adresse devnet |
 |---|---|
@@ -23,26 +25,14 @@ actifs réels**. 91 tests, six contrôles d'intégration continue obligatoires,
 | Coffre EURC | `3HDgK4vurCfZRU8cPTJAH3KVEcbsypHzefqLtVXYpXAq` |
 
 Le cycle dépôt, retrait partiel, retrait intégral est prouvé sur les deux
-actifs. Preuves et signatures dans `docs/evidence/`.
+actifs. Le transfert de parts entre porteurs l'est également depuis le 01/08 :
+un transfert vers un porteur autorisé aboutit, un transfert vers un porteur qui
+ne l'est pas est refusé avec le code de la liste, et une révocation referme la
+porte. Preuves et signatures dans `docs/evidence/`.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. Le transfert de parts entre porteurs
-
-**C'est la pièce manquante la plus significative.** Le contrôle d'éligibilité
-est le cœur du second livrable, et il n'a jamais été exercé sur le réseau : il
-ne l'est qu'en simulateur, par les six cas du spike de dérisquage.
-
-Ce qu'il faut : un second porteur avec sa propre clé, un compte de parts, et
-deux transactions. Une vers un porteur autorisé, qui doit aboutir. Une vers un
-non-autorisé, qui doit être refusée avec le code de la liste et non pour une
-autre raison.
-
-Les comptes supplémentaires à joindre sont déjà composés par
-`comptesPourTransfert` dans le client, et leur ordre est figé par un test.
-Prévoir un peu de SOL pour le second porteur.
-
-### 2. La démonstration web
+### 1. La démonstration web
 
 Sans elle, personne d'autre que nous ne peut essayer quoi que ce soit : tout
 passe aujourd'hui par une ligne de commande qui signe avec une clé locale.
@@ -54,13 +44,13 @@ signataire.
 
 Point ouvert à trancher avant de commencer : l'hébergement et le sous-domaine.
 
-### 3. Le paquet de provisionnement sans portefeuille
+### 2. Le paquet de provisionnement sans portefeuille
 
 Le parcours où l'utilisateur ne manipule ni extension ni phrase de
 récupération. Quatre briques indépendantes imprimant chacune une ligne JSON,
 sur le modèle du paquet équivalent du dépôt Soroban.
 
-### 4. L'allocateur et le schéma d'événements
+### 3. L'allocateur et le schéma d'événements
 
 Le second grand chantier. Son cadrage est fait dans la conception, ses venues
 sont vérifiées on-chain, et la contrainte Jupiter est identifiée avec sa
@@ -104,9 +94,20 @@ explicite pour la production.
 
 ## Exploitation
 
-Clé de travail `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP`, environ 13,2 SOL,
-10 USDC et 15 EURC. Le robinet public plafonne à deux requêtes par tranche de
-huit heures.
+Clé de travail `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP`. Mesuré le 01/08
+après la séquence de transfert : 23,257 SOL, 37,999 USDC et 39,999 EURC, plus
+1 500 000 parts du coffre USDC. Le robinet public plafonne à deux requêtes par
+tranche de huit heures.
+
+Ces montants bougent sans prévenir : ceux de la version 1.0 étaient déjà faux
+quelques heures plus tard, un réapprovisionnement ayant eu lieu entre-temps. Les
+relire, jamais les recopier.
+
+**Deux porteurs de démonstration** existent sur devnet, clés hors du dépôt et
+jamais approvisionnées : `Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr`, qui
+détient 500 000 parts et n'est plus sur la liste, et
+`BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL`, qui n'y a jamais été. Ils
+restent utiles : rejouer un refus ne coûte rien puisque leurs comptes existent.
 
 ### Une seule clé porte tout
 

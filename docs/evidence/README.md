@@ -11,7 +11,7 @@ Planned files:
 | `devnet-instance.md` | Live devnet instance: vault on Circle USDC, hook attached (**done**) |
 | `bootstrap.md` | Workspace, pinned toolchain, first devnet deployment (**done**) |
 | `vault-core.md` | Anchor YieldVault on devnet: deposit, shares, withdraw, pause (**deployed**) |
-| `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist (**deployed**) |
+| `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist (**done**) |
 | `allocator.md` | CPI into Kamino, marginfi and Jupiter Lend; strategy adapter |
 | `routing.md` | Best-execution swap and rebalancing; devnet and mainnet-fork proofs |
 | `event-schema.md` | Compliance event schema v1 published as an open specification |
