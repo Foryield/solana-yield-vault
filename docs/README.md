@@ -3,6 +3,10 @@
 Ce dossier contient les documents de travail du projet. Ils sont en français ;
 le code, ses commentaires et les documents racine sont en anglais.
 
+**Reprise de travail** : lire d'abord
+[le point de reprise du 01/08](./plans/2026-08-01-point-de-reprise.md). Il dit
+ce qui reste, dans quel ordre, et ce qu'il ne faut pas redécouvrir.
+
 ## Par où commencer
 
 1. [Conception](./plans/2026-07-31-solana-yield-vault-design.md) — ce qu'on
