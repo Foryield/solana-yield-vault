@@ -75,21 +75,36 @@ export function connexion(config: Config): Connection {
 }
 
 /**
- * Contexte du coffre, avec le programme de jeton de l'actif LU on-chain plutot
- * que suppose : USDC et EURC devnet sont du SPL classique, mais rien ne
- * l'impose a un autre actif.
+ * Programme proprietaire d'un mint, retenu une fois pour toutes.
+ *
+ * Il est LU on-chain plutot que suppose (USDC et EURC devnet sont du SPL
+ * classique, mais rien ne l'impose a un autre actif) et il ne change jamais :
+ * le relire a chaque rafraichissement doublait les appels pour rien, sur un
+ * point d'acces public qui limite le debit.
  */
-async function contexteResolu(config: Config, connection: Connection) {
-  const compteMint = await connection.getAccountInfo(config.depositMint);
-  if (!compteMint) {
-    throw new Error(
-      `L'actif ${config.depositMint.toBase58()} n'existe pas sur ce reseau.`,
-    );
+const proprietaires = new Map<string, PublicKey>();
+
+async function programmeDuMint(
+  connection: Connection,
+  mint: PublicKey,
+): Promise<PublicKey> {
+  const cle = `${connection.rpcEndpoint}|${mint.toBase58()}`;
+  const connu = proprietaires.get(cle);
+  if (connu) return connu;
+
+  const compte = await connection.getAccountInfo(mint);
+  if (!compte) {
+    throw new Error(`L'actif ${mint.toBase58()} n'existe pas sur ce reseau.`);
   }
+  proprietaires.set(cle, compte.owner);
+  return compte.owner;
+}
+
+async function contexteResolu(config: Config, connection: Connection) {
   return {
     program: vaultProgram(config.vaultProgramId, fournisseur(connection)),
     depositMint: config.depositMint,
-    depositTokenProgram: compteMint.owner,
+    depositTokenProgram: await programmeDuMint(connection, config.depositMint),
   };
 }
 
@@ -292,6 +307,27 @@ export function motifDuRefus(config: Config, e: unknown): string {
   }
 
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * Panne de lecture, dite a un visiteur.
+ *
+ * Le point d'acces public de devnet limite le debit et repond 429 sans
+ * prevenir. Recopier sa reponse JSON-RPC a l'ecran laisse croire a une panne du
+ * coffre, alors qu'il suffit d'attendre.
+ */
+export function panneLisible(e: unknown): string {
+  const brut = e instanceof Error ? e.message : String(e);
+  if (/\b429\b|too many requests|rate limit/i.test(brut)) {
+    return (
+      "Le point d'acces public de devnet limite le debit. " +
+      "Ce n'est pas le coffre : reessayez dans quelques secondes."
+    );
+  }
+  if (/failed to fetch|network|econnrefused|timeout/i.test(brut)) {
+    return "Le point d'acces ne repond pas. Reessayez dans un instant.";
+  }
+  return brut;
 }
 
 /** Les journaux voyagent a des profondeurs variables selon le portefeuille. */

@@ -30,9 +30,13 @@ body {
   padding: 24px;
 }
 
+/* Centrage vertical par `margin: auto` et non par `align-items: center` : le
+   second rogne le haut du bloc des qu'il depasse la fenetre, et le contenu
+   varie avec l'onglet ouvert. */
 .shell {
   width: 100%;
   max-width: 440px;
+  margin: auto;
 }
 
 .brand {
@@ -68,7 +72,6 @@ body {
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 28px;
-  margin-bottom: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
@@ -111,11 +114,6 @@ body {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-align: right;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
 }
 
 label.field {
@@ -180,6 +178,63 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Trois gestes, un seul bloc : les onglets evitent la colonne de cartes. */
+.onglets {
+  display: flex;
+  gap: 4px;
+  margin-top: 24px;
+  padding: 4px;
+  background: #0c1322;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+button.onglet {
+  flex: 1;
+  width: auto;
+  margin: 0;
+  padding: 10px 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+}
+
+button.onglet:hover:not(:disabled):not(.actif) {
+  background: transparent;
+  color: var(--text);
+}
+
+button.onglet.actif {
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+button.onglet:disabled {
+  opacity: 1;
+}
+
+button.onglet.actif:disabled,
+button.onglet:disabled:not(.actif) {
+  opacity: 0.6;
+}
+
+.legende {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 16px 0;
+}
+
+/* Une adresse se lit en entier ou ne se lit pas. */
+input[type="text"].adresse {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding-right: 16px;
+}
+
 /* Prereglages du destinataire : des choix, pas des actions. */
 .prereglages {
   display: flex;
@@ -206,7 +261,7 @@ button.lien:hover:not(:disabled) {
 }
 
 .status {
-  margin-bottom: 16px;
+  margin-top: 18px;
   font-size: 13px;
   line-height: 1.5;
   padding: 14px;
@@ -230,7 +285,7 @@ button.lien:hover:not(:disabled) {
 }
 
 .footer {
-  margin-top: 8px;
+  margin-top: 16px;
   text-align: center;
   font-size: 11px;
   color: var(--muted);
@@ -250,7 +305,16 @@ button.lien:hover:not(:disabled) {
 
 /* Le bouton du selecteur de portefeuille arrive avec sa propre feuille de
    style ; on l'aligne sur la notre plutot que de laisser deux langages
-   graphiques cohabiter. */
+   graphiques cohabiter.
+
+   Son conteneur d'abord : la bibliotheque le declare `inline-block`, donc un
+   bouton a 100 % y reste large comme son texte. Constate a l'ecran, pas
+   deduit. */
+.wallet-adapter-dropdown {
+  display: block !important;
+  width: 100%;
+}
+
 .wallet-adapter-button-trigger {
   background: var(--accent) !important;
   border-radius: 12px !important;
@@ -258,8 +322,26 @@ button.lien:hover:not(:disabled) {
   font-size: 15px !important;
   font-weight: 650 !important;
   height: auto !important;
+  /* La hauteur de ligne de la bibliotheque vaut 48px : sans la neutraliser, le
+     bouton fait le double des notres, garniture comprise. */
+  line-height: 1.2 !important;
   padding: 14px !important;
   width: 100% !important;
   justify-content: center !important;
   margin-top: 20px;
+}
+
+/* Une fois connecte, le meme bouton ne fait plus qu'afficher l'adresse et
+   ouvrir son menu : il redevient discret. */
+.portefeuille .wallet-adapter-button-trigger {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--muted) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 12px !important;
+  padding: 10px !important;
+}
+
+.portefeuille .wallet-adapter-button-trigger:hover:not(:disabled) {
+  color: var(--text) !important;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chargerConfig } from "../lib/config";
-import { enUnites, formater, motifDuRefus } from "../lib/vault";
+import { enUnites, formater, motifDuRefus, panneLisible } from "../lib/vault";
 
 /**
  * Ces tests ne touchent pas le reseau. Ils portent sur les trois endroits ou
@@ -44,8 +44,8 @@ describe("un refus s'affiche dans les mots du programme", () => {
   });
 
   it("choisit le bon IDL : les deux programmes numerotent a partir de 6000", () => {
-    // 0x1770 vaut 6000 : « liste de comptes invalide » cote hook, « coffre
-    // suspendu » cote coffre. Le code seul est ambigu, l'identifiant du
+    // 0x1770 vaut 6000 : "liste de comptes invalide" cote hook, "coffre
+    // suspendu" cote coffre. Le code seul est ambigu, l'identifiant du
     // programme fautif tranche.
     const duCoffre =
       "Program 2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw failed: custom program error: 0x1770";
@@ -69,6 +69,32 @@ describe("un refus s'affiche dans les mots du programme", () => {
   it("rend le message brut plutot que rien quand il n'y a aucun journal", () => {
     expect(motifDuRefus(config, new Error("signature refusee"))).toBe(
       "signature refusee",
+    );
+  });
+});
+
+describe("une panne de lecture se dit a un visiteur", () => {
+  // Reponse reelle du point d'acces public, rencontree en repetant les
+  // lectures : recopiee telle quelle, elle laisse croire a une panne du coffre.
+  const debit =
+    '429 : {"jsonrpc":"2.0","error":{"code": 429, "message":"Too many requests for a specific RPC call"}}';
+
+  it("traduit une limite de debit et dit que ce n'est pas le coffre", () => {
+    const m = panneLisible(new Error(debit));
+    expect(m).toMatch(/limite le debit/);
+    expect(m).toMatch(/pas le coffre/);
+    expect(m).not.toMatch(/jsonrpc/);
+  });
+
+  it("traduit une panne de transport", () => {
+    expect(panneLisible(new Error("Failed to fetch"))).toMatch(/ne repond pas/);
+  });
+
+  it("laisse passer ce qu'elle ne sait pas traduire", () => {
+    // Une erreur metier doit arriver intacte plutot que d'etre habillee en
+    // incident reseau.
+    expect(panneLisible(new Error("Aucun coffre n'est initialise"))).toBe(
+      "Aucun coffre n'est initialise",
     );
   });
 });

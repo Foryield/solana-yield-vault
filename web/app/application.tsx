@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { BaseWalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import {
   PublicKey,
   Transaction,
@@ -17,6 +17,7 @@ import {
   lireEtatCoffre,
   lirePosition,
   motifDuRefus,
+  panneLisible,
   retirer,
   transferer,
   type EtatCoffre,
@@ -24,12 +25,35 @@ import {
   type Position,
 } from "@/lib/vault";
 
+/**
+ * UN SEUL BLOC, CENTRE, comme la demonstration Soroban.
+ *
+ * Elle n'a qu'un geste, nous en avons trois : empiles, ils feraient une colonne
+ * qui n'est plus un bloc. Les trois passent donc par des onglets, ce qui garde
+ * la meme forme et n'expose qu'une action a la fois.
+ */
+
 type Geste = "depot" | "retrait" | "transfert";
 
-function court(cle: PublicKey | string): string {
-  const s = typeof cle === "string" ? cle : cle.toBase58();
-  return `${s.slice(0, 4)}...${s.slice(-4)}`;
-}
+const ONGLETS: { geste: Geste; nom: string }[] = [
+  { geste: "depot", nom: "Deposer" },
+  { geste: "retrait", nom: "Retirer" },
+  { geste: "transfert", nom: "Transferer" },
+];
+
+/**
+ * Le bouton de portefeuille parle anglais par defaut. Le reste de la page est
+ * en francais, sans accents comme tout le code de ce depot.
+ */
+const LIBELLES = {
+  "change-wallet": "Changer de portefeuille",
+  connecting: "Connexion...",
+  "copy-address": "Copier l'adresse",
+  copied: "Adresse copiee",
+  disconnect: "Deconnecter",
+  "has-wallet": "Connecter",
+  "no-wallet": "Choisir un portefeuille",
+} as const;
 
 export default function Application() {
   return <Providers enfants={(config) => <Demonstration config={config} />} />;
@@ -43,6 +67,7 @@ function Demonstration({ config }: { config: Config }) {
   const [position, setPosition] = useState<Position | null>(null);
   const [panne, setPanne] = useState<string | null>(null);
 
+  const [onglet, setOnglet] = useState<Geste>("depot");
   const [montantDepot, setMontantDepot] = useState("1");
   const [montantRetrait, setMontantRetrait] = useState("0.5");
   const [montantTransfert, setMontantTransfert] = useState("0.1");
@@ -50,7 +75,7 @@ function Demonstration({ config }: { config: Config }) {
     config.porteurAutorise.toBase58(),
   );
 
-  const [enCours, setEnCours] = useState<Geste | null>(null);
+  const [enCours, setEnCours] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
 
@@ -59,7 +84,7 @@ function Demonstration({ config }: { config: Config }) {
       setCoffre(await lireEtatCoffre(config, connection));
       setPanne(null);
     } catch (e) {
-      setPanne(e instanceof Error ? e.message : String(e));
+      setPanne(panneLisible(e));
       return;
     }
     setPosition(
@@ -72,8 +97,8 @@ function Demonstration({ config }: { config: Config }) {
   }, [rafraichir]);
 
   /**
-   * Envoi d'une transaction par le portefeuille. La composition vient de la
-   * bibliotheque partagee ; ici on ne fait que signer et attendre.
+   * Envoi par le portefeuille. La composition vient de la bibliotheque
+   * partagee ; ici on ne fait que signer et attendre.
    */
   const envoyer: Envoyer = useCallback(
     async (instructions: TransactionInstruction[]) => {
@@ -94,8 +119,15 @@ function Demonstration({ config }: { config: Config }) {
     [connection, publicKey, sendTransaction],
   );
 
-  async function jouer(geste: Geste, action: () => Promise<string>) {
-    setEnCours(geste);
+  function changerOnglet(geste: Geste) {
+    setOnglet(geste);
+    // Le resultat du geste precedent ne dit rien de celui-ci.
+    setSignature(null);
+    setRefus(null);
+  }
+
+  async function jouer(action: () => Promise<string>) {
+    setEnCours(true);
     setSignature(null);
     setRefus(null);
     try {
@@ -103,29 +135,27 @@ function Demonstration({ config }: { config: Config }) {
     } catch (e) {
       setRefus(motifDuRefus(config, e));
     } finally {
-      setEnCours(null);
+      setEnCours(false);
       await rafraichir().catch(() => {});
     }
   }
 
-  if (panne) {
+  if (panne || !coffre) {
     return (
       <div className="shell">
         <Entete />
         <div className="card">
-          <div className="title">Le coffre est illisible</div>
-          <div className="status error">{panne}</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!coffre) {
-    return (
-      <div className="shell">
-        <Entete />
-        <div className="card">
-          <div className="title">Lecture du coffre</div>
+          <div className="title">
+            {panne ? "Lecture impossible" : "Lecture du coffre"}
+          </div>
+          {panne && (
+            <>
+              <div className="status error">{panne}</div>
+              {/* Sans ce bouton, une limite de debit passagere fige la page
+                  jusqu'a ce que le visiteur pense a la recharger. */}
+              <button onClick={() => void rafraichir()}>Reessayer</button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -134,37 +164,72 @@ function Demonstration({ config }: { config: Config }) {
   const dec = coffre.decimalesActif;
   const decParts = coffre.decimalesParts;
 
+  function lancer() {
+    if (!publicKey) return;
+    if (onglet === "depot") {
+      jouer(() =>
+        deposer(config, connection, publicKey, enUnites(montantDepot, dec), envoyer),
+      );
+    } else if (onglet === "retrait") {
+      jouer(() =>
+        retirer(
+          config, connection, publicKey, enUnites(montantRetrait, decParts), envoyer,
+        ),
+      );
+    } else {
+      jouer(() =>
+        transferer(
+          config,
+          connection,
+          publicKey,
+          new PublicKey(destinataire.trim()),
+          enUnites(montantTransfert, decParts),
+          envoyer,
+        ),
+      );
+    }
+  }
+
   return (
     <div className="shell">
       <Entete />
 
       <div className="card">
-        <div className="title">Le coffre</div>
+        <div className="title">YieldVault</div>
         <div className="subtitle">
           Un depot emet des parts au prorata. Les parts sont un jeton Token-2022
-          dont chaque transfert entre porteurs est soumis a une liste
+          dont chaque transfert entre porteurs passe par une liste
           d&apos;autorisation, appliquee par un second programme.
         </div>
-        <Ligne label="Actif detenu" valeur={`${formater(coffre.actifDuCoffre, dec)} USDC`} />
-        <Ligne label="Parts en circulation" valeur={formater(coffre.offreDeParts, decParts)} />
-        <Ligne label="Depots et retraits" valeur={coffre.suspendu ? "suspendus" : "ouverts"} />
-        <Ligne label="Mint des parts" valeur={court(coffre.sharesMint)} mono />
-      </div>
 
-      {!publicKey ? (
-        <div className="card">
-          <div className="title">Connectez un portefeuille</div>
-          <div className="subtitle">
-            Devnet. Il vous faut un peu de SOL pour les frais et de l&apos;USDC
-            de test pour deposer : les deux robinets sont en bas de page.
-          </div>
-          <WalletMultiButton />
-        </div>
-      ) : (
-        <>
-          <div className="card">
-            <div className="title">Votre position</div>
-            <Ligne label="Portefeuille" valeur={court(publicKey)} mono />
+        <Ligne
+          label="Actif au coffre"
+          valeur={`${formater(coffre.actifDuCoffre, dec)} USDC`}
+        />
+        <Ligne
+          label="Parts en circulation"
+          valeur={formater(coffre.offreDeParts, decParts)}
+        />
+        {coffre.suspendu && (
+          <Ligne label="Depots et retraits" valeur="suspendus" />
+        )}
+
+        {!publicKey ? (
+          <>
+            <div className="note">
+              Devnet. Il vous faut un peu de SOL pour les frais et de l&apos;USDC
+              de test pour deposer : les deux robinets sont en bas de page.
+            </div>
+            <BaseWalletMultiButton labels={LIBELLES} />
+          </>
+        ) : (
+          <>
+            {/* Il porte l'adresse et ouvre le menu qui permet d'en changer ou
+                de se deconnecter : une ligne "Portefeuille" ferait double
+                emploi. Discret, pour ne pas concurrencer le bouton d'action. */}
+            <div className="portefeuille">
+              <BaseWalletMultiButton labels={LIBELLES} />
+            </div>
             <Ligne
               label="Vos parts"
               valeur={position ? formater(position.parts, decParts) : "..."}
@@ -177,118 +242,120 @@ function Demonstration({ config }: { config: Config }) {
               label="Peut RECEVOIR des parts"
               valeur={position?.autorise ? "oui" : "non"}
             />
-            <div className="note">
-              L&apos;eligibilite ne porte que sur la RECEPTION. Deposer et
-              retirer restent ouverts a tous : une frappe et une destruction ne
-              sont pas des transferts, donc la liste ne les voit jamais.
-            </div>
-          </div>
 
-          <Action
-            titre="Deposer"
-            legende="Vos USDC entrent au coffre, des parts vous sont emises."
-            valeur={montantDepot}
-            onChange={setMontantDepot}
-            suffixe="USDC"
-            actif={enCours === null}
-            enCours={enCours === "depot"}
-            onClick={() =>
-              jouer("depot", () =>
-                deposer(config, connection, publicKey, enUnites(montantDepot, dec), envoyer),
-              )
-            }
-          />
-
-          <Action
-            titre="Retirer"
-            legende="Vos parts sont detruites, l'actif vous revient au prorata."
-            valeur={montantRetrait}
-            onChange={setMontantRetrait}
-            suffixe="parts"
-            actif={enCours === null}
-            enCours={enCours === "retrait"}
-            onClick={() =>
-              jouer("retrait", () =>
-                retirer(config, connection, publicKey, enUnites(montantRetrait, decParts), envoyer),
-              )
-            }
-          />
-
-          <div className="card">
-            <div className="title">Transferer des parts</div>
-            <div className="subtitle">
-              La seule surface ou le controle se voit. Vers un porteur autorise
-              le transfert aboutit ; vers un autre il est refuse par le
-              programme, et son motif s&apos;affiche ici.
+            <div className="onglets">
+              {ONGLETS.map(({ geste, nom }) => (
+                <button
+                  key={geste}
+                  className={geste === onglet ? "onglet actif" : "onglet"}
+                  onClick={() => changerOnglet(geste)}
+                  disabled={enCours}
+                >
+                  {nom}
+                </button>
+              ))}
             </div>
 
-            <label className="field">Destinataire</label>
-            <div className="prereglages">
-              <button
-                className="lien"
-                onClick={() => setDestinataire(config.porteurAutorise.toBase58())}
-              >
-                porteur autorise
-              </button>
-              <button
-                className="lien"
-                onClick={() => setDestinataire(config.porteurNonAutorise.toBase58())}
-              >
-                porteur non autorise
-              </button>
-            </div>
-            <div className="input-wrap">
-              <input
-                type="text"
-                value={destinataire}
-                onChange={(e) => setDestinataire(e.target.value)}
-                disabled={enCours !== null}
-                spellCheck={false}
-              />
-            </div>
+            {onglet === "depot" && (
+              <>
+                <div className="legende">
+                  Vos USDC entrent au coffre, des parts vous sont emises. Une
+                  frappe n&apos;est pas un transfert : la liste ne la voit pas.
+                </div>
+                <Montant
+                  valeur={montantDepot}
+                  onChange={setMontantDepot}
+                  suffixe="USDC"
+                  actif={!enCours}
+                />
+              </>
+            )}
 
-            <label className="field">Montant</label>
-            <div className="input-wrap">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={montantTransfert}
-                onChange={(e) => setMontantTransfert(e.target.value)}
-                disabled={enCours !== null}
-              />
-              <span className="suffix">parts</span>
-            </div>
+            {onglet === "retrait" && (
+              <>
+                <div className="legende">
+                  Vos parts sont detruites, l&apos;actif vous revient au
+                  prorata. Une destruction n&apos;est pas un transfert non plus.
+                </div>
+                <Montant
+                  valeur={montantRetrait}
+                  onChange={setMontantRetrait}
+                  suffixe="parts"
+                  actif={!enCours}
+                />
+              </>
+            )}
 
-            <button
-              onClick={() =>
-                jouer("transfert", () =>
-                  transferer(
-                    config,
-                    connection,
-                    publicKey,
-                    new PublicKey(destinataire.trim()),
-                    enUnites(montantTransfert, decParts),
-                    envoyer,
-                  ),
-                )
-              }
-              disabled={enCours !== null}
-            >
-              {enCours === "transfert" ? "Signature en cours..." : "Transferer"}
+            {onglet === "transfert" && (
+              <>
+                <div className="legende">
+                  La seule surface ou le controle se voit. Vers un porteur
+                  autorise le transfert aboutit ; vers un autre il est refuse
+                  par le programme, et son motif s&apos;affiche ci-dessous.
+                </div>
+                <label className="field">Destinataire</label>
+                <div className="prereglages">
+                  <button
+                    className="lien"
+                    onClick={() =>
+                      setDestinataire(config.porteurAutorise.toBase58())
+                    }
+                    disabled={enCours}
+                  >
+                    porteur autorise
+                  </button>
+                  <button
+                    className="lien"
+                    onClick={() =>
+                      setDestinataire(config.porteurNonAutorise.toBase58())
+                    }
+                    disabled={enCours}
+                  >
+                    porteur non autorise
+                  </button>
+                </div>
+                <div className="input-wrap">
+                  <input
+                    type="text"
+                    className="adresse"
+                    value={destinataire}
+                    onChange={(e) => setDestinataire(e.target.value)}
+                    disabled={enCours}
+                    spellCheck={false}
+                  />
+                </div>
+                <label className="field">Montant</label>
+                <Montant
+                  valeur={montantTransfert}
+                  onChange={setMontantTransfert}
+                  suffixe="parts"
+                  actif={!enCours}
+                />
+              </>
+            )}
+
+            <button onClick={lancer} disabled={enCours}>
+              {enCours
+                ? "Signature en cours..."
+                : ONGLETS.find((o) => o.geste === onglet)!.nom}
             </button>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {signature && (
-        <div className="status success">
-          Confirme sur devnet.{" "}
-          <a href={lienTransaction(signature)} target="_blank" rel="noreferrer">
-            Voir la transaction &rarr;
-          </a>
-        </div>
-      )}
-      {refus && <div className="status error">{refus}</div>}
+        {signature && (
+          <div className="status success">
+            Confirme sur devnet.{" "}
+            <a
+              href={lienTransaction(signature)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Voir la transaction &rarr;
+            </a>
+          </div>
+        )}
+        {refus && <div className="status error">{refus}</div>}
+      </div>
 
       <Pied />
     </div>
@@ -306,59 +373,36 @@ function Entete() {
   );
 }
 
-function Ligne({
-  label,
-  valeur,
-  mono,
-}: {
-  label: string;
-  valeur: string;
-  mono?: boolean;
-}) {
+function Ligne({ label, valeur }: { label: string; valeur: string }) {
   return (
     <div className="row">
       <span className="label">{label}</span>
-      <span className={mono ? "value mono" : "value"}>{valeur}</span>
+      <span className="value">{valeur}</span>
     </div>
   );
 }
 
-function Action({
-  titre,
-  legende,
+function Montant({
   valeur,
   onChange,
   suffixe,
   actif,
-  enCours,
-  onClick,
 }: {
-  titre: string;
-  legende: string;
   valeur: string;
   onChange: (v: string) => void;
   suffixe: string;
   actif: boolean;
-  enCours: boolean;
-  onClick: () => void;
 }) {
   return (
-    <div className="card">
-      <div className="title">{titre}</div>
-      <div className="subtitle">{legende}</div>
-      <div className="input-wrap">
-        <input
-          type="text"
-          inputMode="decimal"
-          value={valeur}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={!actif}
-        />
-        <span className="suffix">{suffixe}</span>
-      </div>
-      <button onClick={onClick} disabled={!actif}>
-        {enCours ? "Signature en cours..." : titre}
-      </button>
+    <div className="input-wrap">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={valeur}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!actif}
+      />
+      <span className="suffix">{suffixe}</span>
     </div>
   );
 }
@@ -377,11 +421,6 @@ function Pied() {
         <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">
           USDC de test
         </a>
-      </div>
-      <div className="note">
-        Le robinet USDC plafonne a deux demandes par tranche de huit heures.
-      </div>
-      <div>
         <a
           href="https://github.com/Foryield/solana-yield-vault"
           target="_blank"
@@ -389,6 +428,9 @@ function Pied() {
         >
           Code source
         </a>
+      </div>
+      <div className="note">
+        Le robinet USDC plafonne a deux demandes par tranche de huit heures.
       </div>
     </div>
   );
