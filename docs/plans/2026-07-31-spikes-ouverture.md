@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-08-02 | S5 : contrainte d'environnement ajoutée avant écriture, aucun identifiant de production ne s'approche de ce dépôt |
 | 1.3 | 2026-07-31 | Verdict S1 : la liste d'autorisation est etanche, aucune voie de mouvement n'echappe au hook ; reserve de methode et sa levee programmee |
 | 1.2 | 2026-07-31 | S3 CLOS : espace de travail amorce, ossature deployee sur devnet, cout reel et pieges d'exploitation consignes |
 | 1.1 | 2026-07-31 | Verdict S2 (la couverture ne porte que sur la logique pure côté hôte, le chemin BPF rend zéro) et verdict partiel S3 (versions tranchées contre le réseau, déploiement devnet restant) |
@@ -340,6 +341,28 @@ d'entrée de diffusion adapté à Solana et le format attendu.
 **Critère de sortie.** Une transaction Solana signée par un portefeuille DFNS,
 confirmée sur devnet, signature consignée. C'est le socle du paquet
 `onboarding/`.
+
+**Contrainte ajoutée le 2026-08-02, avant d'écrire une ligne.** Ce spike est le
+premier moment où ce dépôt public touchera des identifiants d'un fournisseur de
+garde. C'est donc le moment où le mauvais compte peut entrer, et un contrôle a
+justement trouvé des identifiants de **production** employés là où ils n'avaient
+rien à faire, sur un chantier voisin. On ne recommence pas.
+
+- **Environnement de test uniquement.** Aucun identifiant de production ne
+  s'approche de ce dépôt, ni de son environnement de construction, ni de son
+  hébergement. Un portefeuille de démonstration sur un réseau de test ne
+  justifie jamais un compte qui tient de la valeur réelle.
+- **Rien dans le dépôt.** Les identifiants se lisent depuis l'environnement,
+  comme le fait déjà `ops/src/config.ts`, et le dépôt n'en porte que les noms.
+  Le contrôle de fuite avant publication doit les nommer.
+- **Jamais côté navigateur.** La signature par un fournisseur de garde est un
+  geste de dorsal. La démonstration web signe avec le portefeuille du visiteur
+  et n'a aucune raison de connaître ces identifiants : un export statique
+  n'ayant pas de serveur, tout ce qu'il reçoit devient public.
+- **La preuve nomme son environnement**, comme elle nomme déjà son cluster.
+
+Si le spike ne peut aboutir qu'avec un compte de production, il n'aboutit pas :
+c'est un résultat, et il se consigne comme tel.
 
 ## S6 - Trésorerie devnet et runbook de distribution
 

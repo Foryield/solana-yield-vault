@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.6 | 2026-08-02 | Point d'accès dédié en service, le point ouvert est clos ; la démonstration sort de la liste des restes |
 | 1.5 | 2026-08-01 | La démonstration est en ligne et harmonisée sur la forme Soroban ; le point d'accès RPC devient un point ouvert |
 | 1.4 | 2026-08-01 | Premier déploiement Render en échec, cause trouvée : l'installation automatique de la plateforme précède la commande de construction |
 | 1.3 | 2026-08-01 | La démonstration web est écrite et éprouvée ; il ne reste d'elle que la mise en ligne |
@@ -33,42 +34,23 @@ un transfert vers un porteur autorisé aboutit, un transfert vers un porteur qui
 ne l'est pas est refusé avec le code de la liste, et une révocation referme la
 porte. Preuves et signatures dans `docs/evidence/`.
 
+**Et tout cela est essayable sans cloner quoi que ce soit** :
+<https://solana.for-yield.com>, servi par Render depuis le blueprint du dépôt,
+sur un point d'accès dédié dont la clé ne rentre pas ici. Ce que le déploiement
+a appris est consigné dans `docs/evidence/demonstration-web.md`.
+
+Deux choses n'ont pas été vérifiées et demandent un portefeuille : **la
+signature des trois gestes depuis la page**, et **l'écran une fois connecté**.
+
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. La démonstration est en ligne, un point reste ouvert
-
-`https://solana.for-yield.com` répond, servi par Render, page vérifiée à
-l'écran. Le sous-domaine a demandé deux gestes et pas un : le CNAME chez
-Cloudflare **et** la déclaration du domaine sur le service Render. Sans le
-second, Cloudflare rend un 403 « DNS points to prohibited IP » qui ne désigne
-pas la vraie cause.
-
-**Point ouvert : le point d'accès RPC.** La page interroge
-`api.devnet.solana.com`, public et limité en débit. Quelques rechargements
-suffisent à le déclencher, et l'écran passe alors en « lecture impossible ».
-La page l'annonce désormais lisiblement et propose de réessayer, mais un
-visiteur pressé verra un coffre indisponible. Un point d'accès dédié lèverait
-la question ; c'est un choix de dépendance externe, donc à trancher.
-
-Un bloc unique et centré, sur la forme de la démonstration Soroban. Les trois
-gestes passent par des onglets : empilés, ils feraient une colonne qui n'est
-plus un bloc.
-
-Deux choses restent non vérifiées. **La signature des trois gestes**, qui
-demande un portefeuille. Et **l'écran une fois connecté**, dont les onglets
-n'ont pas pu être vus : le point d'accès public limitait le débit au moment de
-la vérification. Le reste a été regardé à l'écran, et trois défauts y ont été
-trouvés que la lecture du code n'aurait pas donnés.
-
-Reste enfin une entrée de preuve nommant l'URL publique.
-
-### 2. Le paquet de provisionnement sans portefeuille
+### 1. Le paquet de provisionnement sans portefeuille
 
 Le parcours où l'utilisateur ne manipule ni extension ni phrase de
 récupération. Quatre briques indépendantes imprimant chacune une ligne JSON,
 sur le modèle du paquet équivalent du dépôt Soroban.
 
-### 3. L'allocateur et le schéma d'événements
+### 2. L'allocateur et le schéma d'événements
 
 Le second grand chantier. Son cadrage est fait dans la conception, ses venues
 sont vérifiées on-chain, et la contrainte Jupiter est identifiée avec sa
@@ -103,6 +85,12 @@ bronche.
 partage pas ne vérifie rien.** Trois échecs de suite l'ont rappelé. Reproduire
 la condition d'échec, ou ne pas conclure.
 
+**Un sous-domaine demande deux gestes, pas un.** Le CNAME chez l'hébergeur DNS
+ne suffit pas : le domaine doit aussi être déclaré sur le service Render, qui
+sert plusieurs sites derrière la même adresse. Sans cette déclaration,
+Cloudflare rend un 403 « DNS points to prohibited IP » qui accuse le DNS alors
+que le DNS est juste.
+
 **Répéter sa propre commande ne répète pas ce que la plateforme fait avant
 elle.** La commande de construction du blueprint Render avait été rejouée depuis
 un arbre vierge, et le premier déploiement a quand même échoué : Render installe
@@ -128,6 +116,13 @@ tranche de huit heures.
 Ces montants bougent sans prévenir : ceux de la version 1.0 étaient déjà faux
 quelques heures plus tard, un réapprovisionnement ayant eu lieu entre-temps. Les
 relire, jamais les recopier.
+
+**Le point d'accès de la page en ligne** est dédié et sa clé vit au tableau de
+bord de Render, jamais ici. Le blueprint la déclare `sync: false`, donc une
+synchronisation ne l'écrase pas ; en revanche, recréer le service depuis zéro
+demandera de la ressaisir. Elle est restreinte à son domaine d'origine, ce qui
+est la seule chose qui la protège : un export statique n'a pas de serveur pour
+la cacher.
 
 **Deux porteurs de démonstration** existent sur devnet, clés hors du dépôt et
 jamais approvisionnées : `Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr`, qui
