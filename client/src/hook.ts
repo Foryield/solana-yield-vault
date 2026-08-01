@@ -4,6 +4,10 @@ import {
   SystemProgram,
   type TransactionInstruction,
 } from "@solana/web3.js";
+import {
+  TOKEN_2022_PROGRAM_ID,
+  createTransferCheckedInstruction,
+} from "@solana/spl-token";
 import { allowlistEntryAddress, extraAccountMetasAddress, hookConfigAddress } from "./addresses.js";
 import type { ComplianceHook } from "./programs.js";
 
@@ -115,6 +119,46 @@ export function comptesPourTransfert(
 ): PublicKey[] {
   const a = adressesDuHook(ctx);
   return [ctx.program.programId, a.extraAccountMetas, adresseEntree(ctx, destinationOwner)];
+}
+
+/**
+ * Transfert de parts d'un porteur a un autre, comptes du hook joints.
+ *
+ * Seul `owner` signe : le destinataire ne signe rien, et n'a donc besoin ni de
+ * cle disponible ni de SOL. Son compte de parts, lui, doit exister : le creer
+ * est un geste separe, a la charge de qui paie.
+ *
+ * Le montant est verifie contre les decimales, seule forme de transfert que
+ * Token-2022 accepte sur un mint a hook : le transfert HERITE, qui ne passe pas
+ * le mint, est rejete faute de savoir quel hook appeler. Le cas 3 des six cas
+ * du derisquage en est le temoin permanent.
+ *
+ * Les decimales sont un ARGUMENT et non une lecture : composer une instruction
+ * doit rester hors ligne. C'est l'appelant qui lit le mint.
+ */
+export function instructionTransfert(
+  ctx: HookContext,
+  source: PublicKey,
+  destination: PublicKey,
+  owner: PublicKey,
+  destinationOwner: PublicKey,
+  montant: bigint,
+  decimales: number,
+): TransactionInstruction {
+  const ix = createTransferCheckedInstruction(
+    source,
+    ctx.mint,
+    destination,
+    owner,
+    montant,
+    decimales,
+    [],
+    TOKEN_2022_PROGRAM_ID,
+  );
+  for (const pubkey of comptesPourTransfert(ctx, destinationOwner)) {
+    ix.keys.push({ pubkey, isSigner: false, isWritable: false });
+  }
+  return ix;
 }
 
 /** `null` si le porteur n'est pas autorise : l'existence du compte vaut autorisation. */

@@ -1,6 +1,6 @@
-# Dépôt et retrait sur devnet — USDC et EURC de Circle
+# Dépôt et retrait sur devnet - USDC et EURC de Circle
 
-## 2026-08-01 — Le cycle complet, sur les deux actifs réels
+## 2026-08-01 - Le cycle complet, sur les deux actifs réels
 
 **Ce que ça prouve** : dépôt, émission de parts proportionnelles, retrait
 partiel et retrait intégral fonctionnent contre le réseau, sur les actifs émis
@@ -9,7 +9,7 @@ dans les journaux précédents est levée.**
 
 **Cluster** : Solana **devnet** (`https://api.devnet.solana.com`).
 
-### USDC — `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`
+### USDC - `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`
 
 Coffre `SWmEZGD1QjPZZqPXBkRfVsmbZpTEd18uJ3RgMEJCwVW`, parts
 `4R5iTggafNoLwo4KDQsPS8981eqeFw35gUB2JDm6Q5ps`.
@@ -25,7 +25,7 @@ L'écart de 1 000, soit un millième d'USDC, est la contrepartie des parts morte
 immobilisée à jamais. C'est le coût du modèle, annoncé au plan d'implémentation
 avant d'être écrit, et le voici mesuré.
 
-### EURC — `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr`
+### EURC - `HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr`
 
 Coffre `3HDgK4vurCfZRU8cPTJAH3KVEcbsypHzefqLtVXYpXAq`, parts
 `DvXRRdbpuBisRY2q5G6Gi7R9rwcyGFJwb1p5wJxY9grb`, configuration du hook
@@ -64,3 +64,6 @@ Le **transfert de parts entre porteurs**, seule surface où le contrôle
 d'éligibilité se voit, n'est pas exercé ici. Il l'est en simulateur par les six
 cas du spike de dérisquage, et il demandera un second porteur avec son propre
 compte.
+
+> **Levé le 2026-08-01**, le même jour : le transfert est exercé contre le
+> réseau, refus compris, dans `compliance-hook.md`.

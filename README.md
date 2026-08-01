@@ -10,15 +10,15 @@ enforced by the token program itself rather than by an off-chain layer.
 
 ## What this builds
 
-1. **`programs/yield-vault`** — deposit USDC or EURC, mint proportional shares,
+1. **`programs/yield-vault`** - deposit USDC or EURC, mint proportional shares,
    withdraw, admin emergency pause. Shares are a Token-2022 mint.
-2. **`programs/compliance-hook`** — a standalone Token-2022 transfer hook
+2. **`programs/compliance-hook`** - a standalone Token-2022 transfer hook
    enforcing an eligibility allowlist at the token level. Any Solana protocol can
    fork this one alone.
-3. **`programs/allocator`** — routes capital across Solana lending and strategy
+3. **`programs/allocator`** - routes capital across Solana lending and strategy
    venues, one adapter per venue, with per-protocol caps and an emergency
    withdrawal path.
-4. **An open compliance event schema** — an auditable trail for every deposit,
+4. **An open compliance event schema** - an auditable trail for every deposit,
    redemption, fee accrual and reallocation, published as a free-standing
    versioned specification with a reference implementation.
 
@@ -33,13 +33,13 @@ tracks what is blocking. Working documents are in French; code, comments and
 root-level documents are in English.
 
 - [Architecture and design decisions](./docs/plans/2026-07-31-solana-yield-vault-design.md)
-  (French) — scope, verified devnet inventory, programme architecture, proof
+  (French) - scope, verified devnet inventory, programme architecture, proof
   strategy.
-- [Opening spikes](./docs/plans/2026-07-31-spikes-ouverture.md) (French) — seven
+- [Opening spikes](./docs/plans/2026-07-31-spikes-ouverture.md) (French) - seven
   time-boxed questions to answer before writing programme code.
-- [Evidence log](./docs/evidence/) — one file per deliverable, every proof
+- [Evidence log](./docs/evidence/) - one file per deliverable, every proof
   recorded the day it is produced.
-- [How to contribute](./CONTRIBUTING.md) — where to start, the working rules,
+- [How to contribute](./CONTRIBUTING.md) - where to start, the working rules,
   and why proofs must name their cluster.
 
 ## Verified devnet inventory

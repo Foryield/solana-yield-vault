@@ -1,6 +1,6 @@
-# Instance devnet — coffre USDC et son module de conformité
+# Instance devnet - coffre USDC et son module de conformité
 
-## 2026-08-01 — Un coffre existe sur l'USDC de Circle, gouverné par le hook
+## 2026-08-01 - Un coffre existe sur l'USDC de Circle, gouverné par le hook
 
 **Ce que ça prouve** : les deux programmes fonctionnent ensemble contre le
 réseau, sur un actif réel et non sur un jeton fabriqué pour l'occasion. Jusqu'ici
@@ -10,7 +10,7 @@ tout le comportement n'était éprouvé qu'en simulateur.
 
 | Élément | Adresse |
 |---|---|
-| Actif déposé — USDC de Circle | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` |
+| Actif déposé - USDC de Circle | `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU` |
 | Coffre | `SWmEZGD1QjPZZqPXBkRfVsmbZpTEd18uJ3RgMEJCwVW` |
 | Mint des parts (Token-2022) | `4R5iTggafNoLwo4KDQsPS8981eqeFw35gUB2JDm6Q5ps` |
 | Compte d'actif du coffre | `6CDYZCWjqjq8zkYwdEVqJg3KdSUL6AH52zuY7sZYUPaS` |
@@ -59,3 +59,7 @@ dépendance technique.
 Le transfert de parts entre porteurs, qui est la seule surface où le contrôle
 d'éligibilité se voit, n'a pas non plus été exercé sur le réseau. Il l'est en
 simulateur par les six cas du spike de dérisquage.
+
+> **Les deux réserves sont levées le 2026-08-01** : le dépôt et le retrait dans
+> `depot-retrait-devnet.md`, le transfert et son refus dans
+> `compliance-hook.md`.

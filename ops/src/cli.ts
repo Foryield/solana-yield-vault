@@ -12,6 +12,7 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAccount,
   getAssociatedTokenAddressSync,
+  getMint,
 } from "@solana/spl-token";
 import {
   hookProgram,
@@ -22,6 +23,7 @@ import {
   instructionInitialize,
   instructionDeposit,
   instructionWithdraw,
+  instructionTransfert,
   adressesDuCoffre,
   adressesDuHook,
   adresseEntree,
@@ -215,6 +217,86 @@ const commandes: Record<
     };
   },
 
+  /**
+   * Transfere des parts a un autre porteur. GESTE DE PORTEUR, meme reserve que
+   * le depot et le retrait.
+   *
+   * C'est la SEULE surface ou le controle d'eligibilite se voit : une frappe et
+   * une destruction ne sont pas des transferts, donc ni le depot ni le retrait
+   * n'invoquent le hook.
+   *
+   * Le compte de parts du destinataire est cree dans une transaction SEPAREE.
+   * Le grouper avec le transfert ferait disparaitre le compte avec le refus, et
+   * on ne pourrait plus montrer qu'un destinataire non autorise a bien un
+   * compte, reste a zero.
+   */
+  async transferer(config, [mintStr, destinataireStr, partsStr]) {
+    if (!mintStr || !destinataireStr || !partsStr) {
+      throw new Error("usage : transferer <mint-actif> <destinataire> <parts>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const depositMint = new PublicKey(mintStr);
+    const compteMint = await connection.getAccountInfo(depositMint);
+    if (!compteMint) throw new Error(`mint introuvable : ${mintStr}`);
+    const destinataire = new PublicKey(destinataireStr);
+
+    const ctx = {
+      program: vaultProgram(config.vaultProgramId, provider),
+      depositMint,
+      depositTokenProgram: compteMint.owner,
+    };
+    const a = adressesDuCoffre(ctx);
+
+    // Les decimales sont LUES sur le mint des parts. La composition les exige
+    // en argument pour rester hors ligne ; les supposer egales a celles de
+    // l'actif serait une coincidence, pas une regle.
+    const { decimals } = await getMint(
+      connection, a.sharesMint, "confirmed", TOKEN_2022_PROGRAM_ID,
+    );
+
+    const source = getAssociatedTokenAddressSync(
+      a.sharesMint, cle.publicKey, false, TOKEN_2022_PROGRAM_ID,
+    );
+    const destination = getAssociatedTokenAddressSync(
+      a.sharesMint, destinataire, false, TOKEN_2022_PROGRAM_ID,
+    );
+
+    let creation: string | null = null;
+    if ((await connection.getAccountInfo(destination)) === null) {
+      creation = await envoyer(connection, cle, [
+        createAssociatedTokenAccountIdempotentInstruction(
+          cle.publicKey, destination, destinataire, a.sharesMint, TOKEN_2022_PROGRAM_ID,
+        ),
+      ]);
+      // Annoncee des qu'elle est acquise : si le transfert est ensuite refuse,
+      // la ligne JSON ne sera jamais imprimee et un compte aura pourtant ete
+      // cree et paye. Un effet non trace est un effet perdu.
+      console.error(`compte de parts du destinataire cree : ${creation}`);
+    }
+
+    const hookCtx = {
+      program: hookProgram(config.hookProgramId, provider),
+      mint: a.sharesMint,
+    };
+    const ix = instructionTransfert(
+      hookCtx, source, destination, cle.publicKey, destinataire,
+      BigInt(partsStr), decimals,
+    );
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      sharesMint: a.sharesMint.toBase58(),
+      destinataire: destinataireStr,
+      parts: partsStr,
+      comptes: { source: source.toBase58(), destination: destination.toBase58() },
+      creationDuCompte: creation,
+      soldes: {
+        source: await lireSolde(connection, source, TOKEN_2022_PROGRAM_ID),
+        destination: await lireSolde(connection, destination, TOKEN_2022_PROGRAM_ID),
+      },
+      signature,
+    };
+  },
+
   /** Lit l'etat d'un coffre et, si un porteur est donne, son eligibilite. */
   async etat(config, [mintStr, porteurStr]) {
     if (!mintStr) throw new Error("usage : etat <mint-de-l-actif> [porteur]");
@@ -254,6 +336,19 @@ const commandes: Record<
   },
 };
 
+/** Solde d'un compte de jeton. Un compte absent vaut zero, pas une erreur. */
+async function lireSolde(
+  connection: Connection,
+  compte: PublicKey,
+  programme: PublicKey,
+): Promise<string> {
+  try {
+    return (await getAccount(connection, compte, "confirmed", programme)).amount.toString();
+  } catch {
+    return "0";
+  }
+}
+
 /** Photo des soldes qui comptent, apres une operation. */
 async function soldes(
   connection: Connection,
@@ -263,18 +358,11 @@ async function soldes(
   programmeActif: PublicKey,
 ): Promise<Record<string, string>> {
   const a = adressesDuCoffre(ctx as never);
-  const lire = async (compte: PublicKey, programme: PublicKey) => {
-    try {
-      return (await getAccount(connection, compte, "confirmed", programme)).amount.toString();
-    } catch {
-      return "0";
-    }
-  };
   return {
-    partsDuPorteur: await lire(parts, TOKEN_2022_PROGRAM_ID),
-    actifDuPorteur: await lire(actifs, programmeActif),
-    actifDuCoffre: await lire(a.vaultAssets, programmeActif),
-    partsMortes: await lire(a.deadShares, TOKEN_2022_PROGRAM_ID),
+    partsDuPorteur: await lireSolde(connection, parts, TOKEN_2022_PROGRAM_ID),
+    actifDuPorteur: await lireSolde(connection, actifs, programmeActif),
+    actifDuCoffre: await lireSolde(connection, a.vaultAssets, programmeActif),
+    partsMortes: await lireSolde(connection, a.deadShares, TOKEN_2022_PROGRAM_ID),
   };
 }
 
@@ -299,7 +387,16 @@ main().catch((e) => {
   if (e instanceof ConfigError) {
     console.error(`configuration : ${e.message}`);
   } else {
-    console.error(e instanceof Error ? e.message : String(e));
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(message);
+    // LES JOURNAUX DU PROGRAMME, quand le message ne les porte pas deja. Un
+    // refus dont on ne lit pas le code ne prouve rien : une regle appliquee et
+    // un accident de composition echouent de la meme facon vu du dehors. Un
+    // echec de simulation les joint ; un echec constate apres envoi, non.
+    const journaux = (e as { logs?: string[] }).logs;
+    if (journaux?.length && !message.includes(journaux[0]!)) {
+      console.error(journaux.join("\n"));
+    }
   }
   process.exit(1);
 });

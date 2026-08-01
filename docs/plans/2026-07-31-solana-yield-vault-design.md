@@ -1,4 +1,4 @@
-# Conception — Solana YieldVault
+# Conception - Solana YieldVault
 
 Document de référence du chantier, rédigé le 31 juillet 2026, avant toute ligne
 de programme.

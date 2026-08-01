@@ -1,6 +1,6 @@
-# Coffre — dépôt, parts, retrait, pause
+# Coffre - dépôt, parts, retrait, pause
 
-## 2026-07-31 — Le coffre complet est déployé sur devnet
+## 2026-07-31 - Le coffre complet est déployé sur devnet
 
 **Ce que ça prouve** : le programme déployé à l'identifiant vérifiable porte
 désormais les quatre instructions du coffre, et non plus l'ossature vide du
@@ -28,7 +28,7 @@ erreurs typées.
 
 Agrandissement du compte de données :
 [`5iMxHq4K…g29u`](https://explorer.solana.com/tx/5iMxHq4KjWFSvxkRrjoXXmdQWM8hGkdhZJcwT2KQz3tmjNMNkkyUgY4AHgix47xtpgZR6kAs9ScrLgF89WyRg29u?cluster=devnet)
-— le compte passe de 57 048 à 634 256 octets, son dépôt de non-expiration de
+Le compte passe de 57 048 à 634 256 octets, son dépôt de non-expiration de
 0,398 à 4,416 SOL.
 
 Déploiement :

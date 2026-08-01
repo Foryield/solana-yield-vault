@@ -1,4 +1,4 @@
-# Implémentation du coffre — plan
+# Implémentation du coffre - plan
 
 Plan d'exécution du programme `yield-vault`. Suppose lues la conception
 (`2026-07-31-solana-yield-vault-design.md`) et les verdicts des trois spikes

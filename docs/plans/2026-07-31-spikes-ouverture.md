@@ -1,4 +1,4 @@
-# Spikes d'ouverture — dérisquage avant écriture
+# Spikes d'ouverture - dérisquage avant écriture
 
 Ouverture du chantier, 31 juillet 2026. Une question par spike, une méthode, un
 critère de sortie, une journée maximum. Un spike qui déborde devient un chantier
@@ -18,7 +18,7 @@ Les quatre autres peuvent se mener en parallèle.
 
 ---
 
-## S1 — Ce qui déclenche réellement le hook de transfert
+## S1 - Ce qui déclenche réellement le hook de transfert
 
 **Bloquant.** C'est le spike qui décide si le module de conformité tient.
 
@@ -43,7 +43,7 @@ rendre étanche.
 **Risque si négligé.** Écrire le hook, le déployer, le documenter, et découvrir
 tard qu'un transfert hérité le contourne.
 
-### Verdict — 2026-07-31
+### Verdict - 2026-07-31
 
 **La liste d'autorisation est étanche. Aucune voie de mouvement n'échappe au
 hook.** L'architecture du module de conformité tient, §3.2 de la conception n'est
@@ -115,7 +115,7 @@ et non oubliée :
 Le point 3 est le témoin qui compte : c'est celui qui échouerait en silence si
 une version future de Token-2022 assouplissait la garde.
 
-## S2 — Mesure de couverture sur des programmes Anchor
+## S2 - Mesure de couverture sur des programmes Anchor
 
 **Bloquant** pour le seuil d'intégration continue, pas pour l'écriture.
 
@@ -138,7 +138,7 @@ moindre ligne.
 de test, qui vivent dans `src/`. Vérifier si la convention Anchor pose le même
 piège.
 
-### Verdict — 2026-07-31
+### Verdict - 2026-07-31
 
 **Une couverture est mesurable, mais uniquement sur de la logique pure
 compilée côté hôte. Le chemin BPF ne rend rien du tout.**
@@ -236,7 +236,7 @@ Vérifié en supprimant toute copie manuelle du `.so` : `cargo test` et
 `cargo llvm-cov` passent tous deux, sans intervention. À appliquer dès
 l'amorçage de l'espace de travail.
 
-## S3 — Alignement des versions et amorçage de l'espace de travail
+## S3 - Alignement des versions et amorçage de l'espace de travail
 
 **Bloquant.** Rien ne se compile avant.
 
@@ -255,7 +255,7 @@ l'identifiant.
 devnet dont l'identifiant est consigné dans `docs/evidence/`, et la première
 preuve du dépôt.
 
-### Verdict partiel — 2026-07-31
+### Verdict partiel - 2026-07-31
 
 **Versions tranchées contre le réseau. Reste le déploiement devnet.**
 
@@ -283,7 +283,7 @@ Chaîne éprouvée de bout en bout sur le programme témoin : `anchor build` pro
 le `.so` et l'IDL, `cargo test` passe, `cargo llvm-cov` mesure (après la
 correction consignée en S2).
 
-### Verdict — S3 CLOS le 2026-07-31
+### Verdict - S3 CLOS le 2026-07-31
 
 Espace de travail amorcé et ossature déployée sur devnet. Identifiant, adresses,
 signatures et coût dans [`docs/evidence/bootstrap.md`](../evidence/bootstrap.md).
@@ -307,7 +307,7 @@ sur devnet, à 2 comme à 0,5 SOL. Le robinet web reste la seule voie, deux
 requêtes par tranche de huit heures. Ce plafond est le vrai résultat de S6 par
 anticipation, et il contraint le rythme des déploiements.
 
-## S4 — Jupiter Lend en CPI
+## S4 - Jupiter Lend en CPI
 
 **Question.** Les quatre marchés du programme Lending devnet portent-ils bien
 USDC et EURC en actif sous-jacent, et une CPI de dépôt puis de retrait
@@ -326,7 +326,7 @@ consignées, et la mécanique de valorisation du jeton de reçu comprise : de qu
 compte se lit le taux, et comment il convertit un solde de reçu en unités
 d'actif.
 
-## S5 — Signature et diffusion Solana via DFNS
+## S5 - Signature et diffusion Solana via DFNS
 
 **Question.** La chaîne complète tient-elle de bout en bout, du provisionnement
 du portefeuille à la confirmation d'une transaction Solana signée par le
@@ -341,7 +341,7 @@ d'entrée de diffusion adapté à Solana et le format attendu.
 confirmée sur devnet, signature consignée. C'est le socle du paquet
 `onboarding/`.
 
-## S6 — Trésorerie devnet et runbook de distribution
+## S6 - Trésorerie devnet et runbook de distribution
 
 **Question.** Comment financer une série de portefeuilles de démonstration en
 SOL, USDC et EURC sans buter sur les plafonds des robinets ?
@@ -354,7 +354,7 @@ robinet Circle pour USDC et EURC. Établir une clé de trésorerie, l'alimenter,
 éprouvé sur trois adresses, et le coût en temps d'une recharge documenté. Ce
 spike n'est pas technique, il est logistique.
 
-## S7 — Validateur local forké du mainnet
+## S7 - Validateur local forké du mainnet
 
 **Question.** Peut-on cloner les comptes du mainnet nécessaires à un échange
 Jupiter Swap dans un validateur local, et y exécuter une conversion USDC vers
