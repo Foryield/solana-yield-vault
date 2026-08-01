@@ -3,24 +3,36 @@
 # La UI Next.js (dossier web/) est exportee en statique : pas de serveur,
 # pas de demarrage a froid, palier gratuit toujours en ligne.
 #
-# La construction se fait avec `rootDir: web`, mais `web/` depend du paquet
-# client en `file:../client` : la recuperation du depot doit etre complete.
+# AUCUN `rootDir`, ET C'EST LE POINT DELICAT DE CE FICHIER.
 #
-# Le client est installe EN PREMIER et explicitement. Son script `prepare` le
-# construit, ce qui exige ses propres outils ; compter sur npm pour les poser
-# au bon moment reviendrait a dependre d'une subtilite de resolution qu'on
-# decouvrirait au premier deploiement. L'integration continue fait de meme.
+# `web/` depend du paquet client en `file:../client`, dont le script `prepare`
+# construit le paquet a l'installation du consommateur. Ce script exige les
+# outils du client, qui doivent donc etre poses AVANT.
+#
+# Render installe automatiquement les dependances trouvees a la racine de
+# construction, avant meme d'executer la commande ci-dessous. Avec
+# `rootDir: web`, cette installation automatique declenchait le `prepare` du
+# client alors que `client/node_modules` n'existait pas encore : le binaire
+# etait trouve, ses types non, et la construction s'arretait sur un
+# « Cannot find type definition file for 'node' » qui ne nomme rien de la vraie
+# cause. Constate au premier deploiement, le 01/08.
+#
+# La racine du depot ne porte pas de package.json : rien n'y est installe
+# d'office, et l'ordre ci-dessous est donc le seul qui s'applique.
 services:
   - type: web
     name: foryield-solana-demo
     runtime: static
-    rootDir: web
-    buildCommand: npm ci --prefix ../client && npm ci && npm run build
-    staticPublishPath: out
+    buildCommand: npm ci --prefix client && npm ci --prefix web && npm run build --prefix web
+    staticPublishPath: web/out
     pullRequestPreviewsEnabled: false
     # Valeurs PUBLIQUES : identifiants deployes sur devnet et points d'acces.
     # Aucun secret ; aucune cle ne rentre ici, ni ailleurs dans ce depot.
     envVars:
+      # Alignee sur l'integration continue. Le premier deploiement a pris le
+      # defaut de Render, Node 24, que rien n'a jamais eprouve ici.
+      - key: NODE_VERSION
+        value: "22"
       - key: NEXT_PUBLIC_SOLANA_RPC_URL
         value: https://api.devnet.solana.com
       - key: NEXT_PUBLIC_VAULT_PROGRAM_ID
