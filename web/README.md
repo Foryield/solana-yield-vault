@@ -31,9 +31,20 @@ page en nommant ce qui manque, plutot que d'afficher des soldes faux avec
 l'aplomb des vrais. Les valeurs de devnet sont dans `.env.example`, et le
 blueprint `render.yaml` porte les memes.
 
+**Une exception : le point d'acces du site deploye.** Le point d'acces public
+de devnet ne tient pas la charge d'une page publique, donc le site vise un
+point d'acces dedie, dont l'URL porte une cle. Elle est saisie au tableau de
+bord de l'hebergeur et **jamais commise** : le blueprint la declare
+`sync: false`, ce qui la fait ignorer a chaque synchronisation.
+
+Un export statique n'a pas de serveur pour cacher cette cle, qui finit donc
+dans le paquet servi. Elle DOIT etre restreinte a son domaine d'origine chez le
+fournisseur ; sans cette restriction, la manoeuvre ne protege rien.
+
 | Variable | Sens |
 |---|---|
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | Point d'acces. Un hote de production est REFUSE |
+| `NODE_VERSION` | Alignee sur l'integration continue, cote hebergeur |
 | `NEXT_PUBLIC_VAULT_PROGRAM_ID` | Programme du coffre |
 | `NEXT_PUBLIC_HOOK_PROGRAM_ID` | Programme du module de conformite |
 | `NEXT_PUBLIC_DEPOSIT_MINT` | Actif depose |
