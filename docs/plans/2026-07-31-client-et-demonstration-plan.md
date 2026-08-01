@@ -6,6 +6,7 @@ programmes.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-08-01 | Tâches 4 et 5 écrites ; hébergement tranché ; le dossier s'appelle `web/` et non `app/` |
 | 1.3 | 2026-07-31 | Tâches 1 et 2 livrées : composition, lecture d'état et ligne de commande d'administration |
 | 1.2 | 2026-07-31 | L'IDL commis ne porte plus d'adresse : rien dans l'arbre de travail n'en porte de stable après un build |
 | 1.1 | 2026-07-31 | Tâche 1 livrée ; le plan sous-estimait un point : la dérivation d'adresses est INÉVITABLEMENT écrite deux fois, d'où les fixtures croisées |
@@ -56,7 +57,12 @@ programmé est exactement le genre de chose qu'on écrit juste une fois et faux
 la seconde.
 
 Découpage : `client/` porte la composition et la dérivation, `ops/` en fait une
-ligne de commande pour l'administration, `app/` en fait la démonstration.
+ligne de commande pour l'administration, `web/` en fait la démonstration.
+
+> **Corrigé le 2026-08-01** : ce plan annonçait `app/`. Le dossier s'appelle
+> `web/`, comme dans le dépôt Soroban, parce que c'est ce que désigne le
+> `rootDir` du blueprint Render et qu'un lecteur qui compare les deux dépôts
+> publics doit y retrouver la même forme.
 
 ## Ce qui se compose, et ce qui ne se compose pas
 
@@ -115,12 +121,29 @@ des programmes, cette fois via le réseau.
 l'USDC réel de Circle, un dépôt, un retrait, signatures consignées. Puis la même
 chose sur EURC, qui est l'actif visé en production.
 
-**4. Démonstration web.** Connexion de portefeuille, dépôt, retrait, lecture de
-la position. Export statique, hébergement à trancher.
+**4 et 5. Démonstration web, transfert et refus compris.** *Écrites le 01/08*,
+dix-huit tests. Les deux tâches sont tenues d'un bloc : sans le transfert, la
+démonstration montre un coffre quelconque.
 
-**5. Transfert de parts et refus.** La démonstration du contrôle d'éligibilité :
-un transfert vers un porteur autorisé aboutit, vers un autre il est refusé. C'est
-la seule surface où le hook se voit.
+L'hébergement, qui restait à trancher, l'est : **Render, sous-domaine
+`solana.for-yield.com`**, même recette que la démonstration Soroban. Le service
+et le domaine restent à créer à la main.
+
+Trois points que le plan ne pouvait pas prévoir et qui ont coûté du temps. La
+globale `Buffer` est absente du navigateur et la bibliothèque de composition
+s'en sert dès le chargement de son module : le combler à l'exécution arrive trop
+tard, il faut l'injecter à la construction. L'adaptateur de portefeuille tire
+`react-native` et avec lui une seconde version des types de React, ce qui rend
+tout composant de bibliothèque invalide comme élément JSX tant qu'une version
+unique n'est pas imposée. Et le paquet client, lié en `file:`, doit être
+installé explicitement avant le consommateur, sur Render comme en intégration
+continue.
+
+Un test a trouvé un défaut que la lecture n'aurait pas vu : la traduction d'un
+refus retenait la dernière ligne de journal, qui est celle de Token-2022
+propageant le code, et non celle du programme fautif. Le motif s'affichait donc
+en clair dans le cas courant et en `[object Object]` dès qu'un journal ne
+portait pas la ligne de message.
 
 **6. Provisionnement sans portefeuille.** Le parcours où l'utilisateur ne
 manipule ni extension ni phrase de récupération, sur le modèle du paquet

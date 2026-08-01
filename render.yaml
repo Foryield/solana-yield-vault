@@ -1,0 +1,37 @@
+# Render Blueprint - demonstration statique du coffre Solana (devnet).
+# Deploiement : Render -> New -> Blueprint -> pointer ce depot.
+# La UI Next.js (dossier web/) est exportee en statique : pas de serveur,
+# pas de demarrage a froid, palier gratuit toujours en ligne.
+#
+# La construction se fait avec `rootDir: web`, mais `web/` depend du paquet
+# client en `file:../client` : la recuperation du depot doit etre complete.
+#
+# Le client est installe EN PREMIER et explicitement. Son script `prepare` le
+# construit, ce qui exige ses propres outils ; compter sur npm pour les poser
+# au bon moment reviendrait a dependre d'une subtilite de resolution qu'on
+# decouvrirait au premier deploiement. L'integration continue fait de meme.
+services:
+  - type: web
+    name: foryield-solana-demo
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci --prefix ../client && npm ci && npm run build
+    staticPublishPath: out
+    pullRequestPreviewsEnabled: false
+    # Valeurs PUBLIQUES : identifiants deployes sur devnet et points d'acces.
+    # Aucun secret ; aucune cle ne rentre ici, ni ailleurs dans ce depot.
+    envVars:
+      - key: NEXT_PUBLIC_SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: NEXT_PUBLIC_VAULT_PROGRAM_ID
+        value: 2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw
+      - key: NEXT_PUBLIC_HOOK_PROGRAM_ID
+        value: EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63
+      - key: NEXT_PUBLIC_DEPOSIT_MINT
+        value: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+      # Les deux porteurs de demonstration de la preuve du 01/08, proposes en
+      # prereglage sur l'ecran de transfert. Cles publiques seules.
+      - key: NEXT_PUBLIC_PORTEUR_AUTORISE
+        value: Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr
+      - key: NEXT_PUBLIC_PORTEUR_NON_AUTORISE
+        value: BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL
