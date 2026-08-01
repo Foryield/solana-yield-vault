@@ -117,6 +117,12 @@ Ces montants bougent sans prévenir : ceux de la version 1.0 étaient déjà fau
 quelques heures plus tard, un réapprovisionnement ayant eu lieu entre-temps. Les
 relire, jamais les recopier.
 
+**La démonstration est sondée toutes les six heures** par
+`.github/workflows/veille-demonstration.yml` : la page répond, le paquet servi
+porte un point d'accès dédié, ce point d'accès répond, le coffre s'y lit. Un
+échec prévient sans rien bloquer. La sonde ne porte aucun secret, elle lit
+l'URL du point d'accès dans le paquet servi comme le fait un navigateur.
+
 **Le point d'accès de la page en ligne** est dédié et sa clé vit au tableau de
 bord de Render, jamais ici. Le blueprint la déclare `sync: false`, donc une
 synchronisation ne l'écrase pas ; en revanche, recréer le service depuis zéro

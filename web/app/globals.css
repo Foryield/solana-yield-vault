@@ -155,7 +155,19 @@ input[type="text"]:focus {
   font-size: 14px;
 }
 
-button {
+/* LA BIBLIOTHEQUE DE PORTEFEUILLE EST EXCLUE DE CETTE REGLE, et ce n'est pas
+   une precaution de principe.
+
+   Un selecteur d'element perd contre une classe sur les proprietes que la
+   classe declare, mais il gagne sur toutes les autres. La bibliotheque ne
+   declare ni `width` ni `margin-top` sur le bouton de fermeture de sa fenetre :
+   les miennes s'appliquaient donc, et une largeur de 100 % combinee au
+   `border-radius: 50%` de la bibliotheque transformait une croix de 30 pixels
+   en ellipse barrant toute la fenetre. Vu a l'ecran le 02/08.
+
+   Les boutons de la bibliotheque que nous habillons volontairement le sont par
+   des regles nommees, plus bas, qui declarent tout ce dont elles ont besoin. */
+button:not([class*="wallet-adapter"]) {
   width: 100%;
   margin-top: 20px;
   background: var(--accent);
@@ -169,11 +181,11 @@ button {
   transition: background 0.15s ease;
 }
 
-button:hover:not(:disabled) {
+button:not([class*="wallet-adapter"]):hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
-button:disabled {
+button:not([class*="wallet-adapter"]):disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

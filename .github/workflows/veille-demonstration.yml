@@ -1,0 +1,35 @@
+name: Veille de la demonstration
+
+# La demonstration publique n'a personne pour la regarder. Si le service tombe,
+# si la cle du point d'acces est revoquee ou son quota epuise, on l'apprendrait
+# en ouvrant l'URL, c'est-a-dire le jour ou on la montre a quelqu'un.
+#
+# Cette sonde n'est PAS un controle d'integration continue : elle ne juge pas le
+# code, elle constate l'etat du monde. Elle ne tourne donc pas sur les pull
+# requests, et son echec ne bloque aucune fusion. Il previent, ce qui est tout
+# ce qu'on lui demande.
+#
+# GitHub suspend les taches planifiees d'un depot reste inactif soixante jours.
+# Si la veille se tait longtemps, verifier cela avant de conclure que tout va
+# bien.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL a sonder
+        required: false
+        default: https://solana.for-yield.com
+
+jobs:
+  sonde:
+    name: La demonstration repond
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Aucun secret : l'URL du point d'acces est lue dans le paquet servi,
+      # comme le fait le navigateur d'un visiteur. Elle y est par construction,
+      # un export statique n'ayant pas de serveur pour la cacher, et c'est sa
+      # restriction au domaine d'origine qui la protege.
+      - run: ./scripts/veille-demonstration.sh "${{ inputs.url || 'https://solana.for-yield.com' }}"
