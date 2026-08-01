@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-08-01 | Premier déploiement Render en échec, cause trouvée : l'installation automatique de la plateforme précède la commande de construction |
 | 1.3 | 2026-08-01 | La démonstration web est écrite et éprouvée ; il ne reste d'elle que la mise en ligne |
 | 1.2 | 2026-08-01 | Le transfert de parts est fait : il sort de la liste, deux corrections d'exploitation avec lui |
 | 1.1 | 2026-08-01 | Section exploitation corrigée : le risque était mal identifié, il porte sur l'autorité et non sur les paires de clés de programme |
@@ -37,8 +38,12 @@ porte. Preuves et signatures dans `docs/evidence/`.
 
 **Elle est écrite** (`web/`, dix-huit tests, un contrôle d'intégration continue
 dédié) : connexion de portefeuille, dépôt, retrait, transfert avec son refus
-affiché dans les mots du programme. La commande de construction du blueprint
-Render a été rejouée depuis un arbre vierge, pas supposée.
+affiché dans les mots du programme.
+
+Le premier déploiement Render a échoué et la cause est corrigée (voir plus bas,
+« ce qu'il ne faut pas redécouvrir »). La commande du blueprint est désormais
+rejouée depuis un arbre vierge **avec `NODE_ENV=production`**, comme la
+plateforme la lance.
 
 Ce qui reste tient en trois gestes manuels : créer le service Render depuis le
 blueprint du dépôt, y déclarer le domaine `solana.for-yield.com`, poser le CNAME
@@ -89,6 +94,14 @@ bronche.
 **Vérifier une correction dans des conditions que l'intégration continue ne
 partage pas ne vérifie rien.** Trois échecs de suite l'ont rappelé. Reproduire
 la condition d'échec, ou ne pas conclure.
+
+**Répéter sa propre commande ne répète pas ce que la plateforme fait avant
+elle.** La commande de construction du blueprint Render avait été rejouée depuis
+un arbre vierge, et le premier déploiement a quand même échoué : Render installe
+les dépendances trouvées à sa racine de construction AVANT d'exécuter quoi que
+ce soit, et cette installation-là déclenchait le `prepare` du paquet client trop
+tôt. D'où l'absence de `rootDir` : la racine du dépôt ne porte pas de
+`package.json`, donc rien n'y est installé d'office.
 
 **La pile BPF déborde silencieusement** au-delà de quelques comptes
 désérialisés. Les mettre sur le tas d'emblée.
