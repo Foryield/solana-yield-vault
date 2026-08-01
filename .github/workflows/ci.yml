@@ -121,6 +121,49 @@ jobs:
       - run: npm test
         working-directory: ops
 
+  web:
+    name: Demonstration web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            web/package-lock.json
+      # Ni Rust ni Anchor ici : la demonstration consomme les IDL COMMIS du
+      # paquet client, jamais `target/`. C'est ce qui la rend construisible sur
+      # Render, qui n'a aucune chaine Solana.
+      #
+      # Le paquet client est installe EN PREMIER et explicitement. Il est lie
+      # en `file:../client` et son script `prepare` le construit, ce qui exige
+      # ses propres outils : compter sur npm pour les poser au bon moment
+      # reviendrait a dependre d'une subtilite de resolution. Le blueprint
+      # Render fait la meme chose, dans le meme ordre.
+      - run: npm ci
+        working-directory: client
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      # Traduction d'un refus, affichage et lecture des montants : les trois
+      # endroits ou la page peut mentir sans qu'aucun type ne s'en apercoive.
+      - run: npm test
+        working-directory: web
+      # Une demonstration qui ne se construit pas est pire qu'absente. Les
+      # valeurs sont celles du blueprint : la construction les fige.
+      - run: npm run build
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+          NEXT_PUBLIC_VAULT_PROGRAM_ID: 2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw
+          NEXT_PUBLIC_HOOK_PROGRAM_ID: EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63
+          NEXT_PUBLIC_DEPOSIT_MINT: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+          NEXT_PUBLIC_PORTEUR_AUTORISE: Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr
+          NEXT_PUBLIC_PORTEUR_NON_AUTORISE: BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL
+
   coverage:
     name: Couverture du module pur
     runs-on: ubuntu-latest

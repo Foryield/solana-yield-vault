@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-08-01 | La démonstration web est écrite et éprouvée ; il ne reste d'elle que la mise en ligne |
 | 1.2 | 2026-08-01 | Le transfert de parts est fait : il sort de la liste, deux corrections d'exploitation avec lui |
 | 1.1 | 2026-08-01 | Section exploitation corrigée : le risque était mal identifié, il porte sur l'autorité et non sur les paires de clés de programme |
 | 1.0 | 2026-08-01 | Premier point de reprise, fin du cycle coffre + hook + preuve devnet |
@@ -13,9 +14,9 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 96 tests recomptés le 01/08 (66 en Rust, 20 au client, 10 à la
-ligne de commande), six contrôles d'intégration continue obligatoires,
-22 pull requests fusionnées.
+actifs réels**. 114 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+18 à la démonstration), six contrôles d'intégration continue obligatoires,
+23 pull requests fusionnées.
 
 | Élément | Adresse devnet |
 |---|---|
@@ -32,17 +33,21 @@ porte. Preuves et signatures dans `docs/evidence/`.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. La démonstration web
+### 1. La démonstration web, à mettre en ligne
 
-Sans elle, personne d'autre que nous ne peut essayer quoi que ce soit : tout
-passe aujourd'hui par une ligne de commande qui signe avec une clé locale.
+**Elle est écrite** (`web/`, dix-huit tests, un contrôle d'intégration continue
+dédié) : connexion de portefeuille, dépôt, retrait, transfert avec son refus
+affiché dans les mots du programme. La commande de construction du blueprint
+Render a été rejouée depuis un arbre vierge, pas supposée.
 
-Export statique, adaptateur de portefeuille, dépôt et retrait, lecture de
-position. La bibliothèque de composition est prête et ne dépend ni d'un
-portefeuille ni d'un navigateur : la démonstration n'a qu'à fournir le
-signataire.
+Ce qui reste tient en trois gestes manuels : créer le service Render depuis le
+blueprint du dépôt, y déclarer le domaine `solana.for-yield.com`, poser le CNAME
+vers `foryield-solana-demo.onrender.com`. Puis une entrée de preuve nommant
+l'URL publique.
 
-Point ouvert à trancher avant de commencer : l'hébergement et le sous-domaine.
+Deux choses ne sont pas vérifiées et ne peuvent pas l'être sans un navigateur et
+un portefeuille : **le rendu de la page et la signature des trois gestes.** Tout
+le reste l'est.
 
 ### 2. Le paquet de provisionnement sans portefeuille
 
@@ -105,9 +110,13 @@ relire, jamais les recopier.
 
 **Deux porteurs de démonstration** existent sur devnet, clés hors du dépôt et
 jamais approvisionnées : `Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr`, qui
-détient 500 000 parts et n'est plus sur la liste, et
-`BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL`, qui n'y a jamais été. Ils
-restent utiles : rejouer un refus ne coûte rien puisque leurs comptes existent.
+détient 500 000 parts et **est sur la liste**, et
+`BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL`, qui n'y a jamais été. La page de
+démonstration les propose en préréglage pour montrer les deux verdicts.
+
+Le premier avait été révoqué le 01/08 pour prouver que la révocation mord ; il a
+été réautorisé le même jour pour que le cas positif existe dans la
+démonstration. **Le révoquer à nouveau casserait un préréglage de la page.**
 
 ### Une seule clé porte tout
 

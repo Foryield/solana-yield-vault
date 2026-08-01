@@ -1,0 +1,38 @@
+{
+  "name": "foryield-solana-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Demonstration devnet : deposer, retirer, transferer des parts du coffre",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@foryield/solana-yield-vault-client": "file:../client",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.35",
+    "@solana/web3.js": "^1.98.0",
+    "buffer": "^6.0.3",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5",
+    "vitest": "^2"
+  },
+  "//": "L'adaptateur de portefeuille depend de la variante mobile, qui depend de react-native, qui tire @types/react 19. Deux versions des types de React dans un meme arbre rendent tout composant de bibliotheque invalide comme element JSX. On force donc une version unique, alignee sur le React reellement installe.",
+  "overrides": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1"
+  }
+}
