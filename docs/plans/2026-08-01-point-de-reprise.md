@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-08-01 | Section exploitation corrigée : le risque était mal identifié, il porte sur l'autorité et non sur les paires de clés de programme |
 | 1.0 | 2026-08-01 | Premier point de reprise, fin du cycle coffre + hook + preuve devnet |
 
 ---
@@ -107,7 +108,34 @@ Clé de travail `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP`, environ 13,2 SOL
 10 USDC et 15 EURC. Le robinet public plafonne à deux requêtes par tranche de
 huit heures.
 
-Les paires de clés des programmes vivent dans `target/deploy/`, non versionné.
-Les perdre n'empêche pas les mises à jour, qui dépendent de l'autorité, mais
-rend impossible un redéploiement à neuf aux mêmes adresses. **Sauvegarde hors
-poste toujours à faire.**
+### Une seule clé porte tout
+
+Cette clé unique est **autorité de mise à jour des deux programmes,
+administrateur des deux coffres, et autorité de liste des deux mints de parts**.
+La perdre gèlerait tout, définitivement : plus aucune mise à jour, plus aucune
+suspension, plus aucune modification d'éligibilité.
+
+Sa phrase de récupération a été **vérifiée** le 01/08 : dérivée indépendamment,
+elle reproduit exactement la clé publique utilisée. Une sauvegarde non vérifiée
+n'en est pas une, et celle-ci l'est maintenant.
+
+Cette concentration est acceptable sur un réseau de test. Elle ne l'est pas en
+production, où la conception prévoit déjà une signature multiple. **Séparer
+l'autorité de mise à jour de l'administration des coffres est un préalable au
+passage en production**, pas un raffinement.
+
+### Les paires de clés de programme sont secondaires
+
+Correction d'une affirmation trop forte, faite deux fois avant vérification.
+Elles ne servent qu'à déployer un programme à son adresse la **première** fois.
+Une fois le programme en place, tout dépend de l'autorité de mise à jour ; et si
+un programme était fermé, son adresse deviendrait de toute façon inutilisable à
+jamais.
+
+Autrement dit : tant que la phrase de récupération existe et que les programmes
+restent déployés, ces fichiers ne servent à rien. Leur sauvegarde n'est donc pas
+un point bloquant.
+
+Leurs permissions ont été alignées sur celles de la clé de travail le 01/08 :
+elles étaient lisibles par tous, ce qui est sans conséquence sur un réseau de
+test mais constitue une habitude à ne pas transporter ailleurs.
