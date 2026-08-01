@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.5 | 2026-08-01 | La démonstration est en ligne et harmonisée sur la forme Soroban ; le point d'accès RPC devient un point ouvert |
 | 1.4 | 2026-08-01 | Premier déploiement Render en échec, cause trouvée : l'installation automatique de la plateforme précède la commande de construction |
 | 1.3 | 2026-08-01 | La démonstration web est écrite et éprouvée ; il ne reste d'elle que la mise en ligne |
 | 1.2 | 2026-08-01 | Le transfert de parts est fait : il sort de la liste, deux corrections d'exploitation avec lui |
@@ -15,9 +16,9 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 114 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
-18 à la démonstration), six contrôles d'intégration continue obligatoires,
-23 pull requests fusionnées.
+actifs réels**. 117 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+21 à la démonstration), six contrôles d'intégration continue obligatoires,
+25 pull requests fusionnées.
 
 | Élément | Adresse devnet |
 |---|---|
@@ -34,25 +35,32 @@ porte. Preuves et signatures dans `docs/evidence/`.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. La démonstration web, à mettre en ligne
+### 1. La démonstration est en ligne, un point reste ouvert
 
-**Elle est écrite** (`web/`, dix-huit tests, un contrôle d'intégration continue
-dédié) : connexion de portefeuille, dépôt, retrait, transfert avec son refus
-affiché dans les mots du programme.
+`https://solana.for-yield.com` répond, servi par Render, page vérifiée à
+l'écran. Le sous-domaine a demandé deux gestes et pas un : le CNAME chez
+Cloudflare **et** la déclaration du domaine sur le service Render. Sans le
+second, Cloudflare rend un 403 « DNS points to prohibited IP » qui ne désigne
+pas la vraie cause.
 
-Le premier déploiement Render a échoué et la cause est corrigée (voir plus bas,
-« ce qu'il ne faut pas redécouvrir »). La commande du blueprint est désormais
-rejouée depuis un arbre vierge **avec `NODE_ENV=production`**, comme la
-plateforme la lance.
+**Point ouvert : le point d'accès RPC.** La page interroge
+`api.devnet.solana.com`, public et limité en débit. Quelques rechargements
+suffisent à le déclencher, et l'écran passe alors en « lecture impossible ».
+La page l'annonce désormais lisiblement et propose de réessayer, mais un
+visiteur pressé verra un coffre indisponible. Un point d'accès dédié lèverait
+la question ; c'est un choix de dépendance externe, donc à trancher.
 
-Ce qui reste tient en trois gestes manuels : créer le service Render depuis le
-blueprint du dépôt, y déclarer le domaine `solana.for-yield.com`, poser le CNAME
-vers `foryield-solana-demo.onrender.com`. Puis une entrée de preuve nommant
-l'URL publique.
+Un bloc unique et centré, sur la forme de la démonstration Soroban. Les trois
+gestes passent par des onglets : empilés, ils feraient une colonne qui n'est
+plus un bloc.
 
-Deux choses ne sont pas vérifiées et ne peuvent pas l'être sans un navigateur et
-un portefeuille : **le rendu de la page et la signature des trois gestes.** Tout
-le reste l'est.
+Deux choses restent non vérifiées. **La signature des trois gestes**, qui
+demande un portefeuille. Et **l'écran une fois connecté**, dont les onglets
+n'ont pas pu être vus : le point d'accès public limitait le débit au moment de
+la vérification. Le reste a été regardé à l'écran, et trois défauts y ont été
+trouvés que la lecture du code n'aurait pas donnés.
+
+Reste enfin une entrée de preuve nommant l'URL publique.
 
 ### 2. Le paquet de provisionnement sans portefeuille
 
