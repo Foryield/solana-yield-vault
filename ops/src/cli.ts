@@ -8,12 +8,20 @@ import {
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
+  TOKEN_2022_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAccount,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
+import {
   hookProgram,
   vaultProgram,
   instructionAttacher,
   instructionAutoriser,
   instructionRevoquer,
   instructionInitialize,
+  instructionDeposit,
+  instructionWithdraw,
   adressesDuCoffre,
   adressesDuHook,
   adresseEntree,
@@ -130,6 +138,83 @@ const commandes: Record<
     };
   },
 
+  /**
+   * Depose sur un coffre. GESTE DE PORTEUR, pas d'administration : il figure
+   * ici parce que c'est notre seul client pour l'instant, et parce que la
+   * preuve devnet en a besoin. La demonstration web le fera avec un
+   * portefeuille, sur la meme bibliotheque de composition.
+   *
+   * Le compte de parts du deposant est cree si besoin, en compte associe : le
+   * programme dedie calcule sa taille depuis les extensions IMPOSEES par le
+   * mint, ce qui evite de la calculer nous-memes et de se tromper.
+   */
+  async deposer(config, [mintStr, montantStr]) {
+    if (!mintStr || !montantStr) throw new Error("usage : deposer <mint-actif> <montant>");
+    const { connection, cle, provider } = contexte(config);
+    const depositMint = new PublicKey(mintStr);
+    const compteMint = await connection.getAccountInfo(depositMint);
+    if (!compteMint) throw new Error(`mint introuvable : ${mintStr}`);
+
+    const ctx = {
+      program: vaultProgram(config.vaultProgramId, provider),
+      depositMint,
+      depositTokenProgram: compteMint.owner,
+    };
+    const a = adressesDuCoffre(ctx);
+    const actifs = getAssociatedTokenAddressSync(
+      depositMint, cle.publicKey, false, compteMint.owner,
+    );
+    const parts = getAssociatedTokenAddressSync(
+      a.sharesMint, cle.publicKey, false, TOKEN_2022_PROGRAM_ID,
+    );
+    const creerParts = createAssociatedTokenAccountIdempotentInstruction(
+      cle.publicKey, parts, cle.publicKey, a.sharesMint, TOKEN_2022_PROGRAM_ID,
+    );
+    const ix = await instructionDeposit(
+      ctx, cle.publicKey, actifs, parts, BigInt(montantStr),
+    );
+    const signature = await envoyer(connection, cle, [creerParts, ix]);
+    return {
+      depositMint: mintStr,
+      montant: montantStr,
+      comptesDuPorteur: { actifs: actifs.toBase58(), parts: parts.toBase58() },
+      soldes: await soldes(connection, ctx, parts, actifs, compteMint.owner),
+      signature,
+    };
+  },
+
+  /** Retire. Geste de porteur egalement, meme reserve que le depot. */
+  async retirer(config, [mintStr, partsStr]) {
+    if (!mintStr || !partsStr) throw new Error("usage : retirer <mint-actif> <parts>");
+    const { connection, cle, provider } = contexte(config);
+    const depositMint = new PublicKey(mintStr);
+    const compteMint = await connection.getAccountInfo(depositMint);
+    if (!compteMint) throw new Error(`mint introuvable : ${mintStr}`);
+
+    const ctx = {
+      program: vaultProgram(config.vaultProgramId, provider),
+      depositMint,
+      depositTokenProgram: compteMint.owner,
+    };
+    const a = adressesDuCoffre(ctx);
+    const actifs = getAssociatedTokenAddressSync(
+      depositMint, cle.publicKey, false, compteMint.owner,
+    );
+    const parts = getAssociatedTokenAddressSync(
+      a.sharesMint, cle.publicKey, false, TOKEN_2022_PROGRAM_ID,
+    );
+    const ix = await instructionWithdraw(
+      ctx, cle.publicKey, actifs, parts, BigInt(partsStr),
+    );
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      depositMint: mintStr,
+      partsDetruites: partsStr,
+      soldes: await soldes(connection, ctx, parts, actifs, compteMint.owner),
+      signature,
+    };
+  },
+
   /** Lit l'etat d'un coffre et, si un porteur est donne, son eligibilite. */
   async etat(config, [mintStr, porteurStr]) {
     if (!mintStr) throw new Error("usage : etat <mint-de-l-actif> [porteur]");
@@ -168,6 +253,30 @@ const commandes: Record<
     return sortie;
   },
 };
+
+/** Photo des soldes qui comptent, apres une operation. */
+async function soldes(
+  connection: Connection,
+  ctx: { depositMint: PublicKey; program: { programId: PublicKey } },
+  parts: PublicKey,
+  actifs: PublicKey,
+  programmeActif: PublicKey,
+): Promise<Record<string, string>> {
+  const a = adressesDuCoffre(ctx as never);
+  const lire = async (compte: PublicKey, programme: PublicKey) => {
+    try {
+      return (await getAccount(connection, compte, "confirmed", programme)).amount.toString();
+    } catch {
+      return "0";
+    }
+  };
+  return {
+    partsDuPorteur: await lire(parts, TOKEN_2022_PROGRAM_ID),
+    actifDuPorteur: await lire(actifs, programmeActif),
+    actifDuCoffre: await lire(a.vaultAssets, programmeActif),
+    partsMortes: await lire(a.deadShares, TOKEN_2022_PROGRAM_ID),
+  };
+}
 
 function adressesToBase58(a: object): Record<string, string> {
   return Object.fromEntries(
