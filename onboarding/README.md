@@ -132,9 +132,12 @@ fournisseur demandent un compte, et ils constituent la preuve, consignee dans
 - Le nom du portefeuille est l'identifiant brut dans cette demonstration. Ne pas
   transporter ce choix vers un usage reel sans traiter ce nom comme une donnee
   personnelle.
-- `DFNS_CRED_ID` est exige ici parce que le signataire du SDK le prend en
-  argument de constructeur, sans repli. Un dorsal qui parle a l'API directement
-  le retrouve dans la reponse d'initialisation d'action : ce n'est pas une
-  valeur a reclamer partout.
+- `DFNS_CRED_ID` **n'est pas reclame**. Le signataire fourni par le SDK l'exige
+  en argument de constructeur, mais en lisant son code on voit qu'il ne s'en
+  sert que pour verifier qu'il figure parmi les credentials que le defi
+  autorise, puis le recopier. Le defi porte deja cette liste : notre signataire
+  l'y lit (`src/signataire.ts`), comme le fait le dorsal de la maison depuis
+  longtemps. La variable ne reste utile que pour trancher entre plusieurs
+  credentials de type cle sur un meme compte, et l'erreur les enumere alors.
 - Les montants sont en unites minimales. Aucun flottant n'entre dans un montant,
   ici comme ailleurs dans ce depot.

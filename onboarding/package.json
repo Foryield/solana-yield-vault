@@ -17,7 +17,6 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@dfns/sdk": "^0.8.25",
-    "@dfns/sdk-keysigner": "^0.8.25",
     "@foryield/solana-yield-vault-client": "file:../client",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.0"
