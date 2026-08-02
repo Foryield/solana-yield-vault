@@ -1,0 +1,31 @@
+{
+  "name": "@foryield/solana-yield-vault-onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paquet de provisionnement : un portefeuille sous garde depose sans extension ni phrase de recuperation",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "provisionner": "tsx src/cli/provisionner.ts",
+    "financer": "tsx src/cli/financer.ts",
+    "enveloppe": "tsx src/cli/enveloppe.ts",
+    "diffuser": "tsx src/cli/diffuser.ts",
+    "parcours": "tsx src/cli/parcours.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@dfns/sdk": "^0.8.25",
+    "@dfns/sdk-keysigner": "^0.8.25",
+    "@foryield/solana-yield-vault-client": "file:../client",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

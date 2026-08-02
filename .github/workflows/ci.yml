@@ -164,6 +164,35 @@ jobs:
           NEXT_PUBLIC_PORTEUR_AUTORISE: Dz7mzmQS9YDvDMu9faWms41rfcyUM3vZDRXu9ZNhLgKr
           NEXT_PUBLIC_PORTEUR_NON_AUTORISE: BeBQQqjuUFU1qjJayMg46CWuaKw7oTJ5R4UfoVLVKohL
 
+  onboarding:
+    name: Paquet de provisionnement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            onboarding/package-lock.json
+      # Ni Rust ni Anchor : comme la demonstration web, ce paquet consomme les
+      # IDL COMMIS du paquet client. Celui-ci est installe EN PREMIER et
+      # explicitement, son script `prepare` le construisant.
+      - run: npm ci
+        working-directory: client
+      - run: npm ci
+        working-directory: onboarding
+      - run: npm run typecheck
+        working-directory: onboarding
+      # AUCUN IDENTIFIANT N'EST NECESSAIRE, et c'est la ligne de partage du
+      # paquet : composition d'enveloppe, lecture de configuration, verrou de
+      # reseau, ordonnancement du parcours et codes de sortie sont tous hors
+      # ligne. Seuls les appels reels au fournisseur de garde demandent un
+      # compte, et ils constituent la preuve, pas un controle d'integration.
+      - run: npm test
+        working-directory: onboarding
+
   coverage:
     name: Couverture du module pur
     runs-on: ubuntu-latest

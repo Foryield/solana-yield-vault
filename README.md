@@ -33,8 +33,8 @@ schema alone, without pulling in the rest.
 ## Documentation
 
 Start at [`docs/README.md`](./docs/README.md), which indexes everything and
-tracks what is blocking. Working documents are in French; code, comments and
-root-level documents are in English.
+tracks what is blocking. Working documents and code comments are in French;
+root-level documents are in English. Sources are plain ASCII throughout.
 
 - [Architecture and design decisions](./docs/plans/2026-07-31-solana-yield-vault-design.md)
   (French) - scope, verified devnet inventory, programme architecture, proof
