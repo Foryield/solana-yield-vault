@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.5 | 2026-08-02 | S5 : la contrainte d'environnement ne peut pas se traduire par un contrôle d'URL, le fournisseur n'ayant pas d'API de bac à sable ; trois verrous à la place |
 | 1.4 | 2026-08-02 | S5 : contrainte d'environnement ajoutée avant écriture, aucun identifiant de production ne s'approche de ce dépôt |
 | 1.3 | 2026-07-31 | Verdict S1 : la liste d'autorisation est etanche, aucune voie de mouvement n'echappe au hook ; reserve de methode et sa levee programmee |
 | 1.2 | 2026-07-31 | S3 CLOS : espace de travail amorce, ossature deployee sur devnet, cout reel et pieges d'exploitation consignes |
@@ -363,6 +364,26 @@ rien à faire, sur un chantier voisin. On ne recommence pas.
 
 Si le spike ne peut aboutir qu'avec un compte de production, il n'aboutit pas :
 c'est un résultat, et il se consigne comme tel.
+
+**Correction du 2026-08-02, avant écriture également.** « Environnement de
+test » ne peut pas se traduire par un contrôle d'URL, contrairement à ce que
+supposait la rédaction ci-dessus. Le fournisseur de garde **n'a pas d'API de bac
+à sable distincte** : un seul hôte sert le mainnet et les réseaux de test, et
+l'hôte historiquement présenté comme celui du bac à sable est déprécié. Un
+paquet qui aurait refusé tout hôte sauf ce dernier aurait refusé le seul qui
+existe, tout en se croyant protégé.
+
+Ce qui sépare réellement la production du reste tient en trois verrous, et le
+paquet les prend tous les trois : un **compte de service dédié** à cette
+démonstration et cadré à ses seules opérations ; le **réseau**, `SolanaDevnet`
+étant la seule valeur acceptée, tout autre refusée à la lecture de la
+configuration ; la **résidence des identifiants**, hors du dépôt, sans repli, et
+sous test de non-régression. Le second est le seul des trois qu'un programme
+puisse vérifier lui-même, et c'est lui qui remplace le contrôle d'URL
+impossible.
+
+Détail et suite dans
+[`2026-08-02-paquet-provisionnement-plan.md`](./2026-08-02-paquet-provisionnement-plan.md).
 
 ## S6 - Trésorerie devnet et runbook de distribution
 

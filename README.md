@@ -3,10 +3,14 @@
 Open-source Solana programs for a DeFi yield vault whose holder eligibility is
 enforced by the token program itself rather than by an off-chain layer.
 
-> **Status: design phase.** No program is deployed yet. The architecture and the
-> opening de-risking plan are written and reviewable; code follows once the
-> blocking spikes have returned a verdict. Every claim in this repository is
-> either verified on-chain or explicitly marked as an open question.
+> **Status: deployed on devnet and open to anyone.** The vault and the
+> compliance hook are written, tested, deployed and exercised against the
+> network on real assets: deposit, withdrawal and share transfer between
+> holders, including a transfer refused by the allowlist and a revocation that
+> closes the door again. Try it without cloning anything at
+> **<https://solana.for-yield.com>**. The allocator and the compliance event
+> schema are designed, not written. Every claim in this repository is either
+> verified on-chain or explicitly marked as an open question.
 
 ## What this builds
 
@@ -39,6 +43,8 @@ root-level documents are in English.
   time-boxed questions to answer before writing programme code.
 - [Evidence log](./docs/evidence/) - one file per deliverable, every proof
   recorded the day it is produced.
+- [Where the project stands](./docs/plans/2026-08-01-point-de-reprise.md)
+  (French) - what is done, what comes next, and what must not be rediscovered.
 - [How to contribute](./CONTRIBUTING.md) - where to start, the working rules,
   and why proofs must name their cluster.
 
