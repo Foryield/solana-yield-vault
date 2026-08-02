@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.5 | 2026-08-02 | Allocateur : les trois pièces pures de l'étape 1 sont écrites et couvertes, il ne reste que le câblage |
 | 2.4 | 2026-08-02 | Plan de l'allocateur écrit : trois contraintes trouvées chez l'intégration de référence, les trois spikes rattachés |
 | 2.3 | 2026-08-02 | Points ouverts 5 et 6 de la conception clos, ils l'étaient depuis des jours ; décomptes remis à jour |
 | 2.2 | 2026-08-02 | Dépôt et retrait signés depuis la page ; le point d'accès dédié ne sert pas les abonnements, la confirmation passe au sondage |
@@ -70,7 +71,27 @@ alors qu'elle avait réussi. Corrigé, et consigné dans
 
 Le grand chantier restant. **Son plan est écrit le 02/08** et porte quatre
 étapes : la CPI qui clôt S4, l'adaptateur avec ses plafonds, le schéma
-d'événements, puis la réallocation. Rien n'est encore codé.
+d'événements, puis la réallocation.
+
+**Les trois pièces pures de l'étape 1 sont écrites, et le réseau n'a pas encore
+été touché.** C'est l'ordre voulu : chaque pièce est éprouvée avant celle qui
+l'appelle.
+
+L'arithmétique de conversion, en deux temps avec arrondi intermédiaire, éprouvée
+sur les taux réels du marché. La lecture du compte de marché, éprouvée sur les
+octets réels de devnet et non sur des octets fabriqués. La composition des
+instructions, dont l'ordre des comptes vient de l'IDL et n'est pas partagé entre
+dépôt et retrait. Les trois sont couvertes à 100 %.
+
+**Il ne reste que le câblage** : l'instruction Anchor qui enchaîne
+rafraîchissement, lecture, calcul, invocation, mesure du delta et plancher. Elle
+vivra sous `src/instructions/`, hors du périmètre de couverture, ce qui est
+cohérent puisqu'elle ne fera que du câblage.
+
+Une décision l'attend et n'est pas tranchée : les graines de l'adresse dérivée
+qui signera pour l'allocateur, donc le découpage de son état. Une autorité par
+actif, ou une par coffre servi. Le plan la range en étape 2 ; l'étape 1 en a
+besoin au minimum pour signer.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un
