@@ -6,6 +6,7 @@ fournisseur de garde jusqu'à une transaction confirmée sur devnet.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-08-02 | La diffusion est asynchrone : la brique relit la demande jusqu'à un état terminal, et le compte de service gagne la relecture des transactions |
 | 1.0 | 2026-08-02 | Plan initial : cinq briques, garde-fou S5 reformulé, financement par trésorerie |
 
 Conception de référence : `2026-07-31-solana-yield-vault-design.md`, §3.5.
@@ -98,7 +99,7 @@ page.
 | `provisionner` | Crée le portefeuille sur `SolanaDevnet` | le fournisseur de garde |
 | `financer` | Dote l'adresse en SOL, en actif, et ouvre ses deux comptes de jeton | la clé de trésorerie, localement |
 | `enveloppe` | Compose le dépôt et rend la transaction non signée | rien |
-| `diffuser` | Fait signer et diffuser, puis attend la confirmation on-chain | le fournisseur de garde |
+| `diffuser` | Fait signer et diffuser, attend la garde, puis attend la chaîne | le fournisseur de garde |
 | `parcours` | Enchaîne les quatre depuis un seul identifiant | les deux, chacun son tour |
 
 ## Deux approches pour les frais, et pourquoi la plus simple gagne
@@ -109,7 +110,8 @@ frais qui signe.
 **(A) Le portefeuille du fournisseur paie ses propres frais.** La trésorerie lui
 transfère un peu de SOL avant tout geste. Un seul signataire par transaction,
 donc le point d'entrée de diffusion du fournisseur suffit : il signe et diffuse
-en un appel. Fichiers touchés : les cinq briques, rien d'autre.
+lui-même, sans que nous ayons à assembler de signatures. Fichiers touchés : les
+cinq briques, rien d'autre.
 
 **(B) La trésorerie paie les frais, le portefeuille signe le dépôt.** Deux
 signataires sur une même transaction. Le point d'entrée de diffusion ne convient
@@ -154,6 +156,26 @@ Le compte de parts est ouvert par le programme dédié, qui calcule sa taille
 depuis les extensions imposées par le mint. Aucune taille n'est calculée à la
 main, et c'est ce qui rend l'ouverture correcte face à un jeton Token-2022 à
 crochet.
+
+## Une demande de diffusion est asynchrone
+
+Corrigé le 02/08 après relecture des types du fournisseur, et avant tout essai
+réel. Une demande de diffusion rend l'un de six états : `Pending`, `Executing`,
+`Broadcasted`, `Confirmed`, `Failed`, `Rejected`. Les deux premiers sont des
+états de passage parfaitement normaux, et ils deviendront la **règle** le jour
+où une politique d'approbation encadrera les diffusions, ce qui est justement
+le contrôle manquant identifié par ailleurs.
+
+La brique exigeait `Broadcasted` dès la réponse initiale, transposé du dépôt
+Stellar où cela suffit. Elle aurait donc accusé la garde de ne pas avoir diffusé
+alors qu'elle était en train de le faire, et cela au premier essai réel. Elle
+relit maintenant la demande jusqu'à un état terminal.
+
+Deux attentes se suivent en conséquence, et elles ne portent pas sur la même
+chose : la première attend que la **garde** ait diffusé, la seconde que le
+**réseau** ait inclus. Les confondre ferait prendre une demande en cours
+d'approbation pour une transaction perdue. C'est aussi ce qui ajoute la
+relecture des transactions aux opérations du compte de service.
 
 ## Ce qui ne demande aucun compte, et ce qui en demande un
 
