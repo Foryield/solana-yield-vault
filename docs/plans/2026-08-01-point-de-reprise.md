@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.6 | 2026-08-03 | Autorité de signature de l'allocateur tranchée : une par position |
 | 2.5 | 2026-08-02 | Allocateur : les trois pièces pures de l'étape 1 sont écrites et couvertes, il ne reste que le câblage |
 | 2.4 | 2026-08-02 | Plan de l'allocateur écrit : trois contraintes trouvées chez l'intégration de référence, les trois spikes rattachés |
 | 2.3 | 2026-08-02 | Points ouverts 5 et 6 de la conception clos, ils l'étaient depuis des jours ; décomptes remis à jour |
@@ -88,10 +89,11 @@ rafraîchissement, lecture, calcul, invocation, mesure du delta et plancher. Ell
 vivra sous `src/instructions/`, hors du périmètre de couverture, ce qui est
 cohérent puisqu'elle ne fera que du câblage.
 
-Une décision l'attend et n'est pas tranchée : les graines de l'adresse dérivée
-qui signera pour l'allocateur, donc le découpage de son état. Une autorité par
-actif, ou une par coffre servi. Le plan la range en étape 2 ; l'étape 1 en a
-besoin au minimum pour signer.
+La décision qui l'attendait est **tranchée le 03/08** : une autorité de
+signature par position, c'est-à-dire par couple actif et venue, graines
+`["position", coffre, marché]`. Motif : un adaptateur parle à un programme tiers
+dont nous ne maîtrisons rien, et son défaut doit rester borné à sa venue plutôt
+que d'exposer tout l'actif du coffre. Argumentée dans le plan.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un

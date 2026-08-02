@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.3 | 2026-08-03 | Autorité de signature tranchée : une par position, actif et venue, pour que le défaut d'un adaptateur reste borné à sa venue |
 | 1.2 | 2026-08-02 | Comptes relevés dans l'IDL : dix-sept et dix-huit confirmés, les deux ordres diffèrent, le rafraîchissement du taux ne coûte aucun compte |
 | 1.1 | 2026-08-02 | Vérification chiffrée : la formule simplifiée diverge dans 99,64 % des cas et ferait rejeter tous les dépôts ; marché devnet mesuré non rafraîchi depuis cinq jours |
 | 1.0 | 2026-08-02 | Plan initial : trois contraintes trouvées chez l'intégration de référence, quatre étapes, les trois spikes restants rattachés |
@@ -123,6 +124,38 @@ prendre.
 marginfi confirme : ils ont des instructions dédiées par venue, `juplend_*`,
 `solend_*`, `kamino_*`. Sur un programme qui déplace de la valeur, la validation
 statique des comptes n'est pas un confort.
+
+## Deux approches pour l'autorité qui signe, et l'isolation tranche
+
+Le câblage a besoin d'une adresse dérivée qui signe les invocations croisées et
+détient les jetons de reçu. Ses graines décident du découpage de l'état, donc de
+ce qu'une faute peut atteindre.
+
+**(A) Une autorité par actif**, graines `["position", coffre]`. Elle suit la
+granularité du coffre, qui est déjà par actif. Toutes les venues d'un même actif
+partagent alors un signataire, et un rééquilibrage entre deux venues reste
+interne à une seule autorité.
+
+**(B) Une autorité par position**, graines `["position", coffre, marché]`, soit
+une par couple actif et venue. Chaque venue est isolée : le signataire qui peut
+déplacer les jetons de la venue X ne peut rien contre ceux de la venue Y.
+
+**(B) est retenue.** L'argument est l'isolation, et il n'est pas théorique : un
+adaptateur de venue est du code qui parle à un programme tiers dont nous ne
+maîtrisons ni les évolutions ni les défauts. Avec (A), un défaut dans un seul
+adaptateur exposerait l'actif placé sur toutes les venues du même coffre ; avec
+(B), il est borné à la venue concernée. Le coût est nul : une adresse dérivée ne
+se paie pas, et le compte est de toute façon transmis à l'instruction.
+
+L'intégration de référence fait le même choix, et pour la même raison
+apparente : son autorité est dérivée de la clé de sa banque, et une banque
+enveloppe exactement un marché de venue. Corroboration, pas preuve : nous ne
+partageons pas son modèle de compte.
+
+Le prix à payer est visible à l'étape 4 : un rééquilibrage entre deux venues
+traverse deux autorités, donc deux transferts au lieu d'un mouvement interne. La
+contrainte des dix-sept comptes imposait déjà une venue par instruction, donc
+une venue par transaction ; ce prix était donc déjà payé.
 
 ## Étapes
 
