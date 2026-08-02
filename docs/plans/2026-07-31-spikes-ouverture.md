@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.6 | 2026-08-02 | S5 CLOS : la chaine tient de bout en bout, dépôt signé par la garde et confirmé sur devnet |
 | 1.5 | 2026-08-02 | S5 : la contrainte d'environnement ne peut pas se traduire par un contrôle d'URL, le fournisseur n'ayant pas d'API de bac à sable ; trois verrous à la place |
 | 1.4 | 2026-08-02 | S5 : contrainte d'environnement ajoutée avant écriture, aucun identifiant de production ne s'approche de ce dépôt |
 | 1.3 | 2026-07-31 | Verdict S1 : la liste d'autorisation est etanche, aucune voie de mouvement n'echappe au hook ; reserve de methode et sa levee programmee |
@@ -384,6 +385,32 @@ impossible.
 
 Détail et suite dans
 [`2026-08-02-paquet-provisionnement-plan.md`](./2026-08-02-paquet-provisionnement-plan.md).
+
+### Verdict - S5 CLOS le 2026-08-02
+
+**La chaîne tient de bout en bout, et du premier coup.** Un portefeuille créé
+chez le fournisseur à partir d'un identifiant, doté par la trésorerie, a signé
+un dépôt de 0,5 USDC dans le coffre devnet, confirmé au slot 480657110.
+
+Adresses, signatures et relecture indépendante contre le réseau dans
+[`evidence/provisionnement-sous-garde.md`](../evidence/provisionnement-sous-garde.md).
+Le fait qui porte tout : le signataire de la transaction est l'adresse du
+portefeuille sous garde elle-même, dont nous n'avons jamais tenu la clé.
+
+Le garde-fou a tenu aussi, dans les termes où il a été réécrit : compte de
+service dédié à cette démonstration et borné à quatre opérations, réseau de test
+seul demandé, empreinte de genèse vérifiée avant chaque geste, identifiants hors
+du dépôt.
+
+Trois défauts ont été corrigés **avant** l'essai plutôt que découverts pendant.
+Deux venaient de la lecture des types du fournisseur : une demande de diffusion
+est asynchrone, et il n'existe pas d'API de bac à sable sur laquelle appuyer un
+contrôle d'URL. Le troisième venait d'une objection : l'identifiant de
+credential était réclamé alors que le défi le porte.
+
+Reste une réserve écrite : doter chaque portefeuille en SOL depuis la trésorerie
+ne tient pas au delà de la démonstration. La forme visée est un payeur de frais
+distinct du signataire.
 
 ## S6 - Trésorerie devnet et runbook de distribution
 

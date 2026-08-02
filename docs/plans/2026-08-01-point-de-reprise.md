@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.0 | 2026-08-02 | S5 CLOS : un portefeuille sous garde a déposé sur devnet, sans extension ni phrase de récupération |
 | 1.9 | 2026-08-02 | L'identifiant de credential se lit dans le défi et n'est plus réclamé à l'opérateur |
 | 1.8 | 2026-08-02 | La diffusion par la garde est asynchrone : corrigé avant tout essai réel |
 | 1.7 | 2026-08-02 | Paquet de provisionnement écrit et éprouvé hors ligne ; il ne lui manque que le compte de service et sa preuve |
@@ -37,6 +38,12 @@ un transfert vers un porteur autorisé aboutit, un transfert vers un porteur qui
 ne l'est pas est refusé avec le code de la liste, et une révocation referme la
 porte. Preuves et signatures dans `docs/evidence/`.
 
+**Et un porteur peut déposer sans tenir aucune clé** : depuis le 02/08, un
+portefeuille créé chez le fournisseur de garde à partir d'un simple identifiant
+a signé un dépôt confirmé sur devnet, sans extension ni phrase de récupération.
+Le signataire de la transaction est ce portefeuille lui-même, dont nous n'avons
+jamais tenu la clé. Preuve dans `docs/evidence/provisionnement-sous-garde.md`.
+
 **Et tout cela est essayable sans cloner quoi que ce soit** :
 <https://solana.for-yield.com>, servi par Render depuis le blueprint du dépôt,
 sur un point d'accès dédié dont la clé ne rentre pas ici. Ce que le déploiement
@@ -47,30 +54,20 @@ signature des trois gestes depuis la page**, et **l'écran une fois connecté**.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. Le paquet de provisionnement : il ne lui manque qu'un compte
+### 1. L'allocateur et le schéma d'événements
 
-Écrit le 02/08 sous `onboarding/`, avec cinq briques et non quatre : le robinet
-`requestAirdrop` de devnet ne distribue que du SOL et se trouve à sec en
-pratique, tandis que l'actif déposé n'a aucun robinet appelable par programme.
-Le financement par la trésorerie est donc une brique à part entière. Composition
-d'enveloppe, lecture de configuration, verrou de réseau, ordonnancement du
-parcours et codes de sortie sont éprouvés hors ligne, et l'intégration continue
-les exécute sans le moindre identifiant.
+Le grand chantier restant, et désormais le premier. Son cadrage est fait dans la
+conception, ses venues sont vérifiées on-chain, et la contrainte Jupiter est
+identifiée avec sa résolution. Rien n'est commencé.
 
-**Ce qui manque est un geste d'exploitation, pas du code** : un compte de
-service dédié à cette démonstration et cadré à ses seules opérations, chez le
-fournisseur de garde. Son API refuse cette création à un compte de service, donc
-elle passe par la console. Sans lui, la chaîne ne peut pas rendre sa preuve, et
-c'est tout ce qui sépare le spike S5 de son verdict.
+### 2. Le payeur de frais du parcours sous garde
 
-Le plan et les trois verrous d'environnement sont dans
-[`2026-08-02-paquet-provisionnement-plan.md`](./2026-08-02-paquet-provisionnement-plan.md).
-
-### 2. L'allocateur et le schéma d'événements
-
-Le second grand chantier. Son cadrage est fait dans la conception, ses venues
-sont vérifiées on-chain, et la contrainte Jupiter est identifiée avec sa
-résolution. Rien n'est commencé.
+Réserve écrite au verdict S5 plutôt que tue : la trésorerie dote chaque
+portefeuille neuf en SOL, ce qui tient pour une démonstration et pas au delà. La
+forme visée sépare le payeur de frais du signataire, de sorte qu'un utilisateur
+n'ait jamais à détenir de SOL. Elle demande d'assembler deux signatures hors
+ligne au lieu d'emprunter le chemin nominal du fournisseur, d'où son report
+délibéré après la preuve.
 
 ### Spikes non bloquants restants
 
@@ -78,8 +75,8 @@ S4 (Jupiter Lend en CPI), S6 (trésorerie et distribution), S7 (validateur fork�
 du mainnet). S6 a déjà livré l'essentiel de son résultat par anticipation : le
 robinet plafonne à deux requêtes par tranche de huit heures.
 
-S5 n'est plus un spike ouvert mais un chantier écrit qui attend son compte de
-service, cf. point 1 ci-dessus.
+S5 est **clos** depuis le 02/08 : la chaîne du fournisseur de garde tient de
+bout en bout, du portefeuille créé au dépôt confirmé.
 
 ## Ce qu'il ne faut pas redécouvrir
 
