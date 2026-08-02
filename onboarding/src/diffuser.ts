@@ -3,8 +3,13 @@ import type { DfnsApiClient } from "@dfns/sdk";
 /**
  * Quatrieme brique : faire signer, diffuser, puis constater.
  *
- * Le fournisseur signe et diffuse en un appel : nous ne voyons jamais la cle,
- * et il ne voit jamais nos programmes. La frontiere est nette.
+ * Le fournisseur signe et diffuse : nous ne voyons jamais la cle, et il ne voit
+ * jamais nos programmes. La frontiere est nette.
+ *
+ * Deux attentes se suivent, et elles ne portent pas sur la meme chose : la
+ * premiere attend que la GARDE ait diffuse, la seconde que le RESEAU ait
+ * inclus. Les confondre ferait prendre une demande en cours d'approbation pour
+ * une transaction perdue.
  *
  * "Diffuse" n'est pas "inclus". Une transaction acceptee par le fournisseur
  * peut encore expirer, etre rejetee, ou echouer une fois executee. La verite
@@ -17,31 +22,83 @@ export interface Diffusion {
   signature: string;
 }
 
+/**
+ * UNE DEMANDE DE DIFFUSION EST ASYNCHRONE, et le supposer synchrone etait une
+ * erreur. Les statuts que le fournisseur peut rendre sont, d'apres ses propres
+ * types : `Pending`, `Executing`, `Broadcasted`, `Confirmed`, `Failed`,
+ * `Rejected`. Les deux premiers sont des etats de passage parfaitement
+ * normaux, et ils deviendront la regle le jour ou une politique d'approbation
+ * encadrera les diffusions.
+ *
+ * Exiger `Broadcasted` des la reponse initiale aurait donc echoue sur un
+ * fonctionnement nominal, en accusant la garde de ne pas avoir diffuse. On
+ * relit la demande jusqu'a un etat terminal.
+ */
+const EN_COURS = ["Pending", "Executing"];
+const DIFFUSEE = ["Broadcasted", "Confirmed"];
+
+const dormirDiffusion = (ms: number) =>
+  new Promise<void>((r) => setTimeout(r, ms));
+
+export interface PatienceDiffusion {
+  tentatives?: number;
+  delaiMs?: number;
+  attendre?: (ms: number) => Promise<void>;
+}
+
 export async function diffuser(
   client: DfnsApiClient,
   walletId: string,
   hex: string,
+  patience: PatienceDiffusion = {},
 ): Promise<Diffusion> {
-  const reponse = await client.wallets.broadcastTransaction({
+  const {
+    tentatives = 30,
+    delaiMs = 2000,
+    attendre = dormirDiffusion,
+  } = patience;
+
+  let demande = await client.wallets.broadcastTransaction({
     walletId,
     body: { kind: "Transaction", transaction: hex },
   });
 
-  // Le SDK type l'empreinte comme facultative meme diffusee. Tout autre statut
-  // signifie que la demande est retenue par une politique, rejetee ou en
-  // echec : le dire fort plutot que rendre un resultat vide.
-  if (reponse.status !== "Broadcasted" || !reponse.txHash) {
-    const motif = reponse.reason ? ` motif=${reponse.reason}` : "";
-    throw new Error(
-      `la garde n'a pas diffuse : statut=${reponse.status}${motif} ` +
-        `(demande ${reponse.id})`,
-    );
+  for (let i = 0; i < tentatives; i += 1) {
+    if (DIFFUSEE.includes(demande.status)) {
+      // Le SDK type l'empreinte comme facultative meme diffusee. Sans elle,
+      // rien a suivre on-chain : le dire plutot que rendre un resultat vide.
+      if (!demande.txHash) {
+        throw new Error(
+          `la garde annonce ${demande.status} sans empreinte de transaction ` +
+            `(demande ${demande.id})`,
+        );
+      }
+      return {
+        requestId: demande.id,
+        statut: demande.status,
+        signature: demande.txHash,
+      };
+    }
+
+    if (!EN_COURS.includes(demande.status)) {
+      const motif = demande.reason ? ` motif=${demande.reason}` : "";
+      throw new Error(
+        `la garde n'a pas diffuse : statut=${demande.status}${motif} ` +
+          `(demande ${demande.id})`,
+      );
+    }
+
+    await attendre(delaiMs);
+    demande = await client.wallets.getTransaction({
+      walletId,
+      transactionId: demande.id,
+    });
   }
-  return {
-    requestId: reponse.id,
-    statut: reponse.status,
-    signature: reponse.txHash,
-  };
+
+  throw new Error(
+    `la demande ${demande.id} est restee en ${demande.status} apres ` +
+      `${tentatives} relectures. Une approbation est peut-etre en attente.`,
+  );
 }
 
 export interface Confirmation {

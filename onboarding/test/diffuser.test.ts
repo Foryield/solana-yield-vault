@@ -14,7 +14,7 @@ describe("diffuser", () => {
         }),
       },
     };
-    const r = await diffuser(client as never, "wa-1", "0xdeadbeef");
+    const r = await diffuser(client as never, "wa-1", "0xdeadbeef", sansAttente);
     expect(client.wallets.broadcastTransaction).toHaveBeenCalledWith({
       walletId: "wa-1",
       body: { kind: "Transaction", transaction: "0xdeadbeef" },
@@ -27,36 +27,91 @@ describe("diffuser", () => {
   });
 
   /**
-   * Une demande retenue par une politique n'est pas une diffusion. Rendre un
-   * resultat vide ferait croire a un succes et la suite chercherait une
-   * signature qui n'existe pas.
+   * LE CAS QUI AURAIT CASSE LE PREMIER ESSAI REEL. Une demande de diffusion est
+   * asynchrone : `Pending` et `Executing` sont des etats de passage normaux, et
+   * ils deviendront la regle sous une politique d'approbation. Exiger
+   * `Broadcasted` des la reponse initiale accusait la garde de ne pas avoir
+   * diffuse alors qu'elle etait en train de le faire.
    */
-  it("echoue fort quand la demande est retenue", async () => {
+  it("relit la demande tant qu'elle est en cours", async () => {
     const client = {
       wallets: {
         broadcastTransaction: vi
           .fn()
-          .mockResolvedValue({ id: "tx-2", status: "PendingApproval" }),
+          .mockResolvedValue({ id: "tx-2", status: "Pending" }),
+        getTransaction: vi
+          .fn()
+          .mockResolvedValueOnce({ id: "tx-2", status: "Executing" })
+          .mockResolvedValueOnce({
+            id: "tx-2",
+            status: "Broadcasted",
+            txHash: "signature2",
+          }),
       },
     };
-    await expect(diffuser(client as never, "wa-1", "0x00")).rejects.toThrow(
-      /PendingApproval/,
-    );
+    const r = await diffuser(client as never, "wa-1", "0x00", sansAttente);
+    expect(r.signature).toBe("signature2");
+    expect(client.wallets.getTransaction).toHaveBeenCalledWith({
+      walletId: "wa-1",
+      transactionId: "tx-2",
+    });
   });
 
-  it("reporte le motif de la garde quand elle en donne un", async () => {
+  it("accepte une demande deja confirmee par la garde", async () => {
+    const client = {
+      wallets: {
+        broadcastTransaction: vi.fn().mockResolvedValue({
+          id: "tx-4",
+          status: "Confirmed",
+          txHash: "signature4",
+        }),
+      },
+    };
+    await expect(
+      diffuser(client as never, "wa-1", "0x00", sansAttente),
+    ).resolves.toMatchObject({ signature: "signature4" });
+  });
+
+  it("echoue fort sur un refus, en reportant le motif", async () => {
     const client = {
       wallets: {
         broadcastTransaction: vi.fn().mockResolvedValue({
           id: "tx-3",
-          status: "Failed",
+          status: "Rejected",
           reason: "insufficient funds for fee",
         }),
       },
     };
-    await expect(diffuser(client as never, "wa-1", "0x00")).rejects.toThrow(
-      /insufficient funds/,
-    );
+    await expect(
+      diffuser(client as never, "wa-1", "0x00", sansAttente),
+    ).rejects.toThrow(/insufficient funds/);
+  });
+
+  it("renonce en nommant l'approbation possible", async () => {
+    const client = {
+      wallets: {
+        broadcastTransaction: vi
+          .fn()
+          .mockResolvedValue({ id: "tx-5", status: "Pending" }),
+        getTransaction: vi.fn().mockResolvedValue({ id: "tx-5", status: "Pending" }),
+      },
+    };
+    await expect(
+      diffuser(client as never, "wa-1", "0x00", { ...sansAttente, tentatives: 3 }),
+    ).rejects.toThrow(/approbation/);
+  });
+
+  it("refuse une diffusion annoncee sans empreinte", async () => {
+    const client = {
+      wallets: {
+        broadcastTransaction: vi
+          .fn()
+          .mockResolvedValue({ id: "tx-6", status: "Broadcasted" }),
+      },
+    };
+    await expect(
+      diffuser(client as never, "wa-1", "0x00", sansAttente),
+    ).rejects.toThrow(/empreinte/);
   });
 });
 

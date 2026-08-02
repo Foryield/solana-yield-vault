@@ -34,8 +34,11 @@ Il n'y entre donc que des identifiants de test, et cela repose sur trois choses,
 pas sur une seule.
 
 **Le compte de service** doit etre dedie a cette demonstration et cadre a ses
-seules operations. C'est un geste d'exploitation, que le paquet ne peut pas
-verifier lui-meme.
+seules operations : creer un portefeuille, le relire, creer une transaction, et
+relire cette transaction. Quatre, plus la creation de cle que le fournisseur
+ajoute de lui-meme. Rien d'autre : ni mise a jour, ni etiquettes, ni transferts
+natifs, ni permissions, ni politiques. C'est un geste d'exploitation, que le
+paquet ne peut pas verifier lui-meme.
 
 **Le reseau** est `SolanaDevnet`, fige dans le code, et il n'existe aucune
 variable d'environnement pour s'en ecarter. C'est le seul des trois verrous
@@ -83,7 +86,12 @@ npm run enveloppe -- <adresse-du-deposant> <montant-en-unites>
 ```
 
 **Diffuser** : faire signer et diffuser par le fournisseur, puis attendre
-l'inclusion on-chain.
+l'inclusion on-chain. Deux attentes se suivent, et elles ne portent pas sur la
+meme chose : une demande de diffusion est **asynchrone**, elle passe par
+`Pending` puis `Executing` avant `Broadcasted`, et ces etats deviendront la
+regle sous une politique d'approbation. La brique relit donc la demande jusqu'a
+un etat terminal, puis seulement interroge le reseau. C'est aussi pourquoi la
+relecture des transactions figure dans les operations du compte.
 
 ```bash
 npm run diffuser -- <walletId> <transaction-hex>
