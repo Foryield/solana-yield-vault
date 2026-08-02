@@ -35,7 +35,7 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 | S1 | Ce qui déclenche réellement le hook de transfert | oui | **rendu** (31/07) |
 | S2 | Mesure de couverture sur cible BPF | oui | **rendu** (31/07) |
 | S3 | Alignement des versions et amorçage | oui | **clos** (31/07) |
-| S4 | Jupiter Lend en CPI | non | à faire |
+| S4 | Jupiter Lend en CPI | non | **partiel** (02/08) : marchés décodés par l'IDL, CPI restante |
 | S5 | Signature et diffusion Solana via DFNS | non | **clos** (02/08) |
 | S6 | Trésorerie devnet et runbook de distribution | non | à faire |
 | S7 | Validateur local forké du mainnet | non | à faire |
@@ -67,7 +67,7 @@ réserve de méthode est **levée** : la réponse venait de la lecture de la sou
 de Token-2022, et l'épreuve empirique a pris la forme de tests permanents écrits
 avec le hook, puis d'un transfert réellement refusé sur devnet.
 
-Restent S4, S6 et S7, non bloquants. S6 a déjà
+Restent S4, S6 et S7, non bloquants. S4 a rendu son premier volet le 02/08 : les quatre marchés Jupiter Lend devnet sont décodés par l'IDL de l'éditeur, USDC et EURC en sont deux, et la valorisation se lit dans le marché même. S6 a déjà
 livré son résultat par anticipation : la distribution en ligne de commande est
 inutilisable sur devnet, le robinet web plafonne à deux requêtes par tranche de
 huit heures, et ce plafond contraint le rythme des déploiements.

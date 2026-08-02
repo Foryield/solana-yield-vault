@@ -8,6 +8,7 @@ Conception de référence : `2026-07-31-solana-yield-vault-design.md`.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.7 | 2026-08-02 | Verdict partiel S4 : les quatre marchés Jupiter Lend devnet décodés par l'IDL, USDC et EURC confirmés ; le SDK ne connaît que le mainnet |
 | 1.6 | 2026-08-02 | S5 CLOS : la chaine tient de bout en bout, dépôt signé par la garde et confirmé sur devnet |
 | 1.5 | 2026-08-02 | S5 : la contrainte d'environnement ne peut pas se traduire par un contrôle d'URL, le fournisseur n'ayant pas d'API de bac à sable ; trois verrous à la place |
 | 1.4 | 2026-08-02 | S5 : contrainte d'environnement ajoutée avant écriture, aucun identifiant de production ne s'approche de ce dépôt |
@@ -328,6 +329,77 @@ Lend en localnet dans son `Anchor.toml`.
 consignées, et la mécanique de valorisation du jeton de reçu comprise : de quel
 compte se lit le taux, et comment il convertit un solde de reçu en unités
 d'actif.
+
+### Verdict partiel - 2026-08-02 : les marchés sont confirmés, la CPI reste à faire
+
+**Les quatre marchés devnet sont décodés par l'IDL, et USDC comme EURC en font
+partie.** Le point ouvert n° 4 de la conception est clos ; le décodage
+positionnel du 31/07 était juste, et il est maintenant appuyé.
+
+L'IDL n'est **pas publiable sur la chaîne** : `anchor idl fetch` ne trouve aucun
+compte pour le programme devnet. Il est en revanche embarqué en clair dans le
+paquet `@jup-ag/lend` publié par l'éditeur, version 0.1.10, d'où il a été lu.
+
+Le compte de marché s'appelle `Lending` et sa disposition est la suivante :
+
+| Champ | Type | Ce qu'il porte |
+|---|---|---|
+| `mint` | pubkey | l'actif sous-jacent |
+| `f_token_mint` | pubkey | le jeton de reçu |
+| `lending_id` | u16 | |
+| `decimals` | u8 | celles du jeton de reçu, **identiques à celles de l'actif** |
+| `rewards_rate_model` | pubkey | |
+| `liquidity_exchange_price` | u64 | prix de l'actif dans le protocole de liquidité, **hors** récompenses |
+| `token_exchange_price` | u64 | prix entre jeton de reçu et actif, **récompenses comprises** |
+| `last_update_timestamp` | u64 | |
+| `token_reserves_liquidity` | pubkey | |
+| `supply_position_on_liquidity` | pubkey | |
+| `bump` | u8 | |
+
+**Trois recoupements font que ce n'est pas une supposition.** Le discriminateur
+de compte déclaré par l'IDL, `87c75210f983b6f1`, est exactement celui que
+portent les quatre comptes lus sur devnet. La disposition ci-dessus totalise
+**196 octets, la taille observée à l'octet près**. Et les décimales du jeton de
+reçu égalent celles de l'actif dans les quatre cas, comme l'IDL le documente.
+
+Les quatre marchés, lus sur devnet le 02/08 :
+
+| Marché | Actif sous-jacent | Jeton de reçu | Offre du reçu |
+|---|---|---|---|
+| `98Uy7eonumvRbhQvP5Jt7B3WjNqpndioMF99xvR7sDVa` | USDC de Circle | `2Wx1tTo8PkTP95NyKoFNPTtcLnYaSowDkExwbHDKAZQu` | 1 828,01 |
+| `D33qhZNMs5ucS4ub3jDhuyX46VxgoVpRVJNGxFrouw1F` | EURC de Circle | `EiG3iJJJTV8R1pZxrev4bm19N6MH9rNbYdEnqo48rgfq` | 74,00 |
+| `GAvizzttfkgetRzkZY9fqzCYo3fJULM7E9V1Gq5CVTNS` | SOL enveloppé | `BG892DUQW1NHQLinc4mabqH7EVeEfFWpVibAiNnggwmU` | 50,23 |
+| `GzUUURDcCfmtNAD4oWoWo1jshLmp2wanphUcdFx6jCZU` | `EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS` | `4vYT3ui1pJZCiNzjnCJeW96SDzo4qFZ2H67zGAbWcgzi` | **zéro** |
+
+Le quatrième porte un actif que rien n'identifie et son jeton de reçu n'a
+**aucune offre** : ce marché n'a jamais servi. Les deux qui nous intéressent,
+eux, sont alimentés.
+
+Le cinquième compte du programme, de 431 octets, est le `LendingAdmin`, son
+discriminateur concordant lui aussi.
+
+**La valorisation se lit dans le marché lui-même**, et non dans un compte tiers :
+`token_exchange_price` convertit un solde de jeton de reçu en unités d'actif,
+récompenses comprises. `liquidity_exchange_price` fait la même chose sans elles.
+Prendre le second pour le premier sous-évaluerait la position d'exactement les
+récompenses accumulées, silencieusement.
+
+**Le discriminateur d'instruction annoncé par la conception est juste** :
+`sha256("global:deposit")[0..8]` vaut `[242, 35, 198, 137, 82, 225, 242, 182]`,
+identique à celui de l'IDL. Le dépôt prend bien dix-sept comptes.
+
+**Piège à ne pas repayer : le SDK ne connaît pas devnet.** Il code en dur
+l'adresse `jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9`, qui est **exécutable
+sur mainnet et absente de devnet**, quand le programme devnet
+`7tjE28izRUjzmxC1QNXnNwcc4N82CNYCexf3k8mw67s3` est **absent du mainnet**. Les
+deux adresses sont disjointes, vérifié sur les deux réseaux. C'est le même piège
+que marginfi, dont l'identifiant devnet diffère aussi du mainnet : sur Solana,
+une adresse de programme est propre à son cluster, et un SDK qui n'en porte
+qu'une ne dit pas laquelle.
+
+**Ce qui reste pour clore S4** : la CPI elle-même, dépôt puis retrait depuis un
+programme à nous, signatures consignées. La lecture de l'intégration de
+référence de marginfi reste à faire, elle éclairera l'ordre des dix-sept comptes.
 
 ## S5 - Signature et diffusion Solana via DFNS
 
