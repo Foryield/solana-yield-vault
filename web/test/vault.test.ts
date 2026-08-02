@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { chargerConfig } from "../lib/config";
-import { enUnites, formater, motifDuRefus, panneLisible } from "../lib/vault";
+import { confirmer, enUnites, formater, motifDuRefus, panneLisible } from "../lib/vault";
 
 /**
  * Ces tests ne touchent pas le reseau. Ils portent sur les trois endroits ou
@@ -123,5 +123,84 @@ describe("les montants ne passent jamais par un nombre flottant", () => {
     expect(() => enUnites("", 6)).toThrow(/illisible/);
     expect(() => enUnites("abc", 6)).toThrow(/illisible/);
     expect(() => enUnites("-1", 6)).toThrow(/illisible/);
+  });
+});
+
+/**
+ * La confirmation, corrigee le 02/08 apres un bug signale sur la page en ligne.
+ *
+ * `connection.confirmTransaction` s'abonne par WebSocket ; le point d'acces
+ * dedie refuse les abonnements (`signatureSubscribe` -> -32601, mesure). La
+ * page attendait donc une notification qui n'arrivait jamais, puis declarait la
+ * signature expiree alors que la transaction etait passee.
+ */
+describe("confirmer, par sondage et non par abonnement", () => {
+  const sondeur = (
+    statuts: unknown[],
+    hauteur = 100,
+    journaux: string[] = [],
+  ) => ({
+    getSignatureStatuses: async () => ({ value: [statuts.shift() ?? null] }),
+    getBlockHeight: async () => hauteur,
+    getTransaction: async () => ({ meta: { logMessages: journaux } }),
+  });
+  const sansAttente = { delaiMs: 0, attendre: async () => {} };
+  const EMPREINTE = { blockhash: "b", lastValidBlockHeight: 1000 };
+
+  it("rend la main des que le reseau confirme", async () => {
+    const s = sondeur([{ err: null, confirmationStatus: "confirmed" }]);
+    await expect(
+      confirmer(s as never, "sig", EMPREINTE, sansAttente),
+    ).resolves.toBeUndefined();
+  });
+
+  it("continue d'attendre tant que le bloc de reference n'a pas expire", async () => {
+    const s = sondeur([
+      null,
+      { err: null, confirmationStatus: "processed" },
+      { err: null, confirmationStatus: "finalized" },
+    ]);
+    await expect(
+      confirmer(s as never, "sig", EMPREINTE, sansAttente),
+    ).resolves.toBeUndefined();
+  });
+
+  /**
+   * Le motif d'un refus vit dans les journaux, que le statut ne porte pas. Sans
+   * ce rattrapage, la page afficherait un objet d'erreur illisible a la place
+   * de la regle appliquee, et la demonstration perdrait ce qu'elle demontre.
+   */
+  it("va chercher les journaux quand la transaction echoue", async () => {
+    const s = sondeur(
+      [{ err: { InstructionError: [0, { Custom: 6001 }] } }],
+      100,
+      [
+        "Program EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63 failed: custom program error: 0x1771",
+      ],
+    );
+    const e = await confirmer(s as never, "sig", EMPREINTE, sansAttente).catch(
+      (x) => x,
+    );
+    expect(motifDuRefus(config, e)).toBe(
+      "Le destinataire n'est pas sur la liste d'autorisation",
+    );
+  });
+
+  /**
+   * L'expiration se juge sur la HAUTEUR DE BLOC et non sur un delai : c'est le
+   * seul critere qui distingue une transaction perdue d'une transaction lente.
+   */
+  it("ne declare l'expiration qu'une fois la hauteur de bloc depassee", async () => {
+    const s = sondeur([null], 1001);
+    await expect(
+      confirmer(s as never, "sig", EMPREINTE, sansAttente),
+    ).rejects.toThrow(/n'a pas ete incluse/);
+  });
+
+  it("n'invente pas d'expiration quand le reseau a deja confirme", async () => {
+    const s = sondeur([{ err: null, confirmationStatus: "confirmed" }], 99999);
+    await expect(
+      confirmer(s as never, "sig", EMPREINTE, sansAttente),
+    ).resolves.toBeUndefined();
   });
 });
