@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-08-02 | Comptes relevés dans l'IDL : dix-sept et dix-huit confirmés, les deux ordres diffèrent, le rafraîchissement du taux ne coûte aucun compte |
 | 1.1 | 2026-08-02 | Vérification chiffrée : la formule simplifiée diverge dans 99,64 % des cas et ferait rejeter tous les dépôts ; marché devnet mesuré non rafraîchi depuis cinq jours |
 | 1.0 | 2026-08-02 | Plan initial : trois contraintes trouvées chez l'intégration de référence, quatre étapes, les trois spikes restants rattachés |
 
@@ -160,13 +161,55 @@ que la jambe d'échange entre en jeu : Jupiter Swap n'existant pas sur devnet,
 c'est le seul moyen d'éprouver ce chemin sans prétendre qu'il tourne là où il ne
 tourne pas.
 
+## Les comptes, relevés dans l'IDL le 02/08
+
+Vérifié avant d'écrire, comme annoncé. Le dépôt prend bien **dix-sept** comptes
+et le retrait **dix-huit**, ce que la conception annonçait sans l'avoir lu.
+
+| # | Dépôt (`assets: u64`) | Retrait (`amount: u64`) |
+|---|---|---|
+| 1 | `signer` (écriture, signataire) | `signer` (écriture, signataire) |
+| 2 | `depositor_token_account` (é) | `owner_token_account` (é) |
+| 3 | `recipient_token_account` (é) | `recipient_token_account` (é) |
+| 4 | `mint` | `lending_admin` |
+| 5 | `lending_admin` | `lending` (é) |
+| 6 | `lending` (é) | `mint` |
+| 7 | `f_token_mint` (é) | `f_token_mint` (é) |
+| 8 | `supply_token_reserves_liquidity` (é) | `supply_token_reserves_liquidity` (é) |
+| 9 | `lending_supply_position_on_liquidity` (é) | `lending_supply_position_on_liquidity` (é) |
+| 10 | `rate_model` | `rate_model` |
+| 11 | `vault` (é) | `vault` (é) |
+| 12 | `liquidity` (é) | **`claim_account`** (é) |
+| 13 | `liquidity_program` (é) | `liquidity` (é) |
+| 14 | `rewards_rate_model` | `liquidity_program` (é) |
+| 15 | `token_program` | `rewards_rate_model` |
+| 16 | `associated_token_program` | `token_program` |
+| 17 | `system_program` | `associated_token_program` |
+| 18 | | `system_program` |
+
+**Les deux ordres ne se déduisent pas l'un de l'autre.** Positions 4 et 6
+s'échangent entre les deux instructions, et le retrait insère un compte
+supplémentaire au milieu. Réutiliser l'ordre du dépôt pour le retrait produirait
+un compte au mauvais rang, c'est-à-dire l'échec le plus opaque de Solana. Chaque
+adaptateur déclarera donc ses comptes séparément, sans facteur commun.
+
+**Le compte de réclamation n'existe que côté retrait.** C'est l'adresse dérivée
+que le guide de référence décrit comme une mise en place unique, à créer par une
+instruction permissionnée du programme de récompenses avant le premier retrait,
+et que rien ne crée automatiquement. Le préalable d'exploitation identifié plus
+haut a donc un nom et une position.
+
+**Le rafraîchissement du taux ne coûte aucun compte supplémentaire.** `updateRate`
+n'en prend que cinq, et ces cinq figurent déjà parmi les dix-sept du dépôt :
+`lending`, `mint`, `f_token_mint`, `supply_token_reserves_liquidity` et
+`rewards_rate_model`. L'appeler dans la même transaction ne pèse donc rien sur
+le budget de taille, ce qui retire le seul argument qu'on aurait pu avoir contre.
+
 ## Ce qui reste à vérifier avant d'écrire
 
-L'ordre exact des dix-sept comptes du dépôt, lu dans l'IDL et confronté à la
-structure d'accueil de marginfi. Le compte intermédiaire de retrait, sa
-propriété et le moment de sa création. Et le comportement de `updateRate` sur un
-marché devnet peu actif : les récompenses matérialisées d'un coup peuvent
-surprendre.
+Le comportement de `updateRate` sur notre marché devnet, resté cinq jours sans
+rafraîchissement : des récompenses matérialisées d'un coup peuvent surprendre, et
+il vaut mieux le constater sur une transaction isolée que dans un dépôt.
 
 ## Vérification
 
