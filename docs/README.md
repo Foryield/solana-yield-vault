@@ -19,7 +19,7 @@ ce qui reste, dans quel ordre, et ce qu'il ne faut pas redécouvrir.
    [le client et la démonstration](./plans/2026-07-31-client-et-demonstration-plan.md)
    (clos) et
    [le paquet de provisionnement](./plans/2026-08-02-paquet-provisionnement-plan.md)
-   (ouvert).
+   (clos) et [l'allocateur](./plans/2026-08-02-allocateur-plan.md) (ouvert).
 2. [Spikes d'ouverture](./plans/2026-07-31-spikes-ouverture.md) - les sept
    questions à trancher avant d'écrire du programme.
 3. [Journal de preuves](./evidence/) - une entrée par livrable, chaque preuve

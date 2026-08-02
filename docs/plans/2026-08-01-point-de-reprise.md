@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.4 | 2026-08-02 | Plan de l'allocateur écrit : trois contraintes trouvées chez l'intégration de référence, les trois spikes rattachés |
 | 2.3 | 2026-08-02 | Points ouverts 5 et 6 de la conception clos, ils l'étaient depuis des jours ; décomptes remis à jour |
 | 2.2 | 2026-08-02 | Dépôt et retrait signés depuis la page ; le point d'accès dédié ne sert pas les abonnements, la confirmation passe au sondage |
 | 2.1 | 2026-08-02 | S4 partiel : marchés Jupiter Lend confirmés par l'IDL, l'allocateur peut être planifié |
@@ -67,9 +68,16 @@ alors qu'elle avait réussi. Corrigé, et consigné dans
 
 ### 1. L'allocateur et le schéma d'événements
 
-Le grand chantier restant, et désormais le premier. Son cadrage est fait dans la
-conception, ses venues sont vérifiées on-chain, et la contrainte Jupiter est
-identifiée avec sa résolution. Rien n'est commencé.
+Le grand chantier restant. **Son plan est écrit le 02/08** et porte quatre
+jalons : la CPI qui clôt S4, l'adaptateur avec ses plafonds, le schéma
+d'événements, puis la réallocation. Rien n'est encore codé.
+
+La lecture de l'intégration de référence a trouvé trois contraintes que la
+conception ignorait : le taux doit être rafraîchi dans la même transaction, un
+retrait ne peut pas viser une adresse dérivée et exige un compte intermédiaire,
+et deux taux se ressemblent au point qu'une confusion fausse la valorisation
+sans rien signaler. Détail dans
+[`2026-08-02-allocateur-plan.md`](./2026-08-02-allocateur-plan.md).
 
 ### 2. Le payeur de frais du parcours sous garde
 
