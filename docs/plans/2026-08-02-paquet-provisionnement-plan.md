@@ -6,6 +6,7 @@ fournisseur de garde jusqu'à une transaction confirmée sur devnet.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.2 | 2026-08-02 | L'identifiant de credential est lu dans le défi du fournisseur : une valeur de moins à réclamer, et une dépendance de moins |
 | 1.1 | 2026-08-02 | La diffusion est asynchrone : la brique relit la demande jusqu'à un état terminal, et le compte de service gagne la relecture des transactions |
 | 1.0 | 2026-08-02 | Plan initial : cinq briques, garde-fou S5 reformulé, financement par trésorerie |
 
@@ -176,6 +177,24 @@ chose : la première attend que la **garde** ait diffusé, la seconde que le
 **réseau** ait inclus. Les confondre ferait prendre une demande en cours
 d'approbation pour une transaction perdue. C'est aussi ce qui ajoute la
 relecture des transactions aux opérations du compte de service.
+
+## Une valeur qu'il ne faut pas réclamer
+
+Le signataire fourni par le SDK exige un identifiant de credential en argument
+de constructeur. En lisant son code, on voit qu'il ne s'en sert que pour deux
+choses : vérifier que cet identifiant figure parmi ceux que le défi autorise,
+puis le recopier dans l'assertion. Or le défi porte déjà cette liste. La valeur
+était donc réclamée à l'opérateur pour être comparée à une réponse qui la
+contient.
+
+Le paquet écrit son propre signataire, quarante lignes, qui lit l'identifiant
+dans le défi. Le dorsal de la maison procède ainsi depuis longtemps ; les deux
+sont maintenant au même niveau. La variable ne subsiste que pour trancher entre
+plusieurs credentials de type clé sur un même compte, cas où le défi ne dit pas
+lequel correspond à notre clé privée, et où l'erreur les énumère.
+
+Effet de bord bienvenu : une dépendance en moins, le paquet du signataire du
+fournisseur n'ayant plus d'emploi.
 
 ## Ce qui ne demande aucun compte, et ce qui en demande un
 

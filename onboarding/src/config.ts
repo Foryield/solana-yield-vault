@@ -51,8 +51,14 @@ export interface Config {
 export interface Garde {
   apiUrl: string;
   authToken: string;
-  credId: string;
   privateKey: string;
+  /**
+   * FACULTATIF, et ce n'est pas un oubli. Le defi du fournisseur porte
+   * lui-meme la liste des credentials autorises : notre signataire y lit
+   * l'identifiant au lieu de le reclamer. Il ne sert qu'a trancher entre
+   * plusieurs credentials de type cle sur un meme compte. Cf. `signataire.ts`.
+   */
+  credId?: string;
 }
 
 /** Cle qui dote les portefeuilles neufs. Exigee par la seule brique qui signe localement. */
@@ -102,14 +108,13 @@ export function chargerConfig(env: Env): Config {
  * qui a mene une cle de production a servir une demonstration.
  */
 export function chargerGarde(env: Env): Garde {
+  const credId = env["DFNS_CRED_ID"]?.trim();
   return {
     apiUrl: exige("DFNS_API_URL", env),
     authToken: exige("DFNS_AUTH_TOKEN", env),
-    // Exige par le signataire du SDK, qui le prend en argument de constructeur
-    // sans repli. Le dorsal, lui, le retrouve dans la reponse d'initialisation
-    // d'action : ce n'est donc pas une valeur a reclamer partout.
-    credId: exige("DFNS_CRED_ID", env),
     privateKey: exige("DFNS_PRIVATE_KEY", env),
+    // Facultatif : lu dans le defi par defaut. Une variable vide vaut absente.
+    ...(credId ? { credId } : {}),
   };
 }
 

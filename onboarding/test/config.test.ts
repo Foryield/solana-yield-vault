@@ -64,7 +64,6 @@ describe("les identifiants de garde", () => {
   const GARDE = {
     DFNS_API_URL: "https://api.exemple.test",
     DFNS_AUTH_TOKEN: "jeton",
-    DFNS_CRED_ID: "cred",
     DFNS_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----",
   };
 
@@ -86,6 +85,21 @@ describe("les identifiants de garde", () => {
     // C'est ce qui permet de composer une enveloppe sans tenir le moindre
     // pouvoir de signature.
     expect(() => chargerConfig(COMPLET)).not.toThrow();
+  });
+
+  /**
+   * L'identifiant de credential N'EST PAS RECLAME. Le defi du fournisseur le
+   * porte, et notre signataire l'y lit. Il ne reste utile que pour trancher
+   * entre plusieurs credentials de type cle sur un meme compte.
+   */
+  it("n'exigent pas l'identifiant de credential", () => {
+    expect(() => chargerGarde(GARDE)).not.toThrow();
+    expect(chargerGarde(GARDE).credId).toBeUndefined();
+  });
+
+  it("le retiennent quand il est pose, ignorent une valeur vide", () => {
+    expect(chargerGarde({ ...GARDE, DFNS_CRED_ID: "cr-un" }).credId).toBe("cr-un");
+    expect(chargerGarde({ ...GARDE, DFNS_CRED_ID: "  " }).credId).toBeUndefined();
   });
 });
 

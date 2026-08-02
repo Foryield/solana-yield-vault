@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.9 | 2026-08-02 | L'identifiant de credential se lit dans le défi et n'est plus réclamé à l'opérateur |
 | 1.8 | 2026-08-02 | La diffusion par la garde est asynchrone : corrigé avant tout essai réel |
 | 1.7 | 2026-08-02 | Paquet de provisionnement écrit et éprouvé hors ligne ; il ne lui manque que le compte de service et sa preuve |
 | 1.6 | 2026-08-02 | Point d'accès dédié en service, le point ouvert est clos ; la démonstration sort de la liste des restes |
@@ -19,8 +20,8 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 175 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
-21 à la démonstration, 58 au paquet de provisionnement), sept contrôles
+actifs réels**. 182 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+21 à la démonstration, 65 au paquet de provisionnement), sept contrôles
 d'intégration continue obligatoires, 29 pull requests fusionnées.
 
 | Élément | Adresse devnet |
