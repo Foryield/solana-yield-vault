@@ -65,12 +65,14 @@ mainnet** : son SDK expose deux environnements devnet, `dev` sur
 programme, et `dev.1` sur `neetcne3Ctrrud7vLdt2ypMm21gZHGN2mCmqWaMVcBQ`.
 
 **Jupiter Lend** est déployé et alimenté sur devnet : Lending
-`7tjE28izRUjzmxC1QNXnNwcc4N82CNYCexf3k8mw67s3` (5 comptes, dont quatre marchés),
+`7tjE28izRUjzmxC1QNXnNwcc4N82CNYCexf3k8mw67s3` (5 comptes, dont quatre marchés ;
+adresse propre à devnet, le SDK de l'éditeur ne portant que celle du mainnet),
 Liquidity `5uDkCoM96pwGYhAUucvCzLfm5UcjVRuxz6gH81RnRBmL` (32 comptes),
 Vaults `Ho32sUQ4NzuAQgkPkHuNDG3G18rgHmYtXFA8EBmqQrAu` (803 comptes). Le décodage
-positionnel des quatre marchés fait apparaître en première clé les mints USDC
-devnet, EURC devnet et SOL enveloppé. Indication forte, à confirmer par lecture
-de l'IDL au moment de l'intégration.
+positionnel des quatre marchés faisait apparaître en première clé les mints USDC
+devnet, EURC devnet et SOL enveloppé. **Confirmé par l'IDL le 02/08** : le
+premier champ est bien l'actif sous-jacent, le quatrième marché portant un actif
+non identifié dont le jeton de reçu n'a aucune offre.
 
 **Venues de stratégie et d'échange.** Drift
 `dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH` est exécutable sur devnet, au même
@@ -300,8 +302,14 @@ routage Jupiter Swap tourne sur devnet.
    `rust-toolchain.toml`. La page d'installation d'Anchor annonçait Agave
    2.0.26, deux versions majeures de retard ; le pin d'Anchor 1.0.2 de marginfi
    est lui aussi en retard sur le réseau et n'a donc pas été suivi.
-4. Confirmation par l'IDL que les quatre marchés Jupiter Lend devnet portent bien
-   USDC et EURC en actif sous-jacent (§2). **Ouvert.**
+4. ~~Confirmation par l'IDL que les quatre marchés Jupiter Lend devnet portent
+   bien USDC et EURC en actif sous-jacent.~~ **Tranché le 02/08 par l'IDL**,
+   embarqué dans le paquet publié par l'éditeur, la chaîne n'en portant aucun.
+   Le compte `Lending` commence par `mint` puis `f_token_mint` ; le
+   discriminateur et la taille de 196 octets concordent à l'octet près. USDC et
+   EURC de Circle sont bien deux des quatre marchés, et les deux sont alimentés.
+   La valorisation se lit dans le marché même, champ `token_exchange_price`,
+   récompenses comprises. Détail en S4.
 5. Hébergement de la démonstration. **Ouvert.**
 6. Clé d'exploitation devnet et approvisionnement en SOL, préalable au premier
    déploiement. Aucune clé n'existe sur la machine de développement et le CLI

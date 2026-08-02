@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.1 | 2026-08-02 | S4 partiel : marchés Jupiter Lend confirmés par l'IDL, l'allocateur peut être planifié |
 | 2.0 | 2026-08-02 | S5 CLOS : un portefeuille sous garde a déposé sur devnet, sans extension ni phrase de récupération |
 | 1.9 | 2026-08-02 | L'identifiant de credential se lit dans le défi et n'est plus réclamé à l'opérateur |
 | 1.8 | 2026-08-02 | La diffusion par la garde est asynchrone : corrigé avant tout essai réel |
@@ -72,7 +73,9 @@ délibéré après la preuve.
 ### Spikes non bloquants restants
 
 S4 (Jupiter Lend en CPI), S6 (trésorerie et distribution), S7 (validateur forké
-du mainnet). S6 a déjà livré l'essentiel de son résultat par anticipation : le
+du mainnet). **S4 a rendu son premier volet le 02/08** : les quatre marchés
+devnet sont décodés par l'IDL de l'éditeur, USDC et EURC en sont deux et sont
+alimentés, et la valorisation se lit dans le marché même. Ne reste que la CPI. S6 a déjà livré l'essentiel de son résultat par anticipation : le
 robinet plafonne à deux requêtes par tranche de huit heures.
 
 S5 est **clos** depuis le 02/08 : la chaîne du fournisseur de garde tient de
@@ -113,6 +116,12 @@ les dépendances trouvées à sa racine de construction AVANT d'exécuter quoi q
 ce soit, et cette installation-là déclenchait le `prepare` du paquet client trop
 tôt. D'où l'absence de `rootDir` : la racine du dépôt ne porte pas de
 `package.json`, donc rien n'y est installé d'office.
+
+**Une adresse de programme tierce est propre à son cluster, et un SDK n'en porte
+qu'une.** Le paquet publié par l'éditeur de Jupiter Lend code en dur l'adresse du
+mainnet, absente de devnet, quand le programme devnet est absent du mainnet : les
+deux sont disjointes. Même piège que marginfi. Prendre l'adresse d'un SDK pour
+argent comptant produit un compte introuvable, symptôme le plus opaque de Solana.
 
 **Le fournisseur de garde n'a pas d'API de bac à sable**, et l'hôte
 historiquement présenté comme tel est déprécié. Un seul hôte sert le mainnet et
