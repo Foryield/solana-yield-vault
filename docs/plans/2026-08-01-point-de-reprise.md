@@ -69,7 +69,7 @@ alors qu'elle avait réussi. Corrigé, et consigné dans
 ### 1. L'allocateur et le schéma d'événements
 
 Le grand chantier restant. **Son plan est écrit le 02/08** et porte quatre
-jalons : la CPI qui clôt S4, l'adaptateur avec ses plafonds, le schéma
+étapes : la CPI qui clôt S4, l'adaptateur avec ses plafonds, le schéma
 d'événements, puis la réallocation. Rien n'est encore codé.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la

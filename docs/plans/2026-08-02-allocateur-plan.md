@@ -7,7 +7,7 @@ rendement et rend compte de chaque mouvement.
 | Version | Date | Changement |
 |---|---|---|
 | 1.1 | 2026-08-02 | Vérification chiffrée : la formule simplifiée diverge dans 99,64 % des cas et ferait rejeter tous les dépôts ; marché devnet mesuré non rafraîchi depuis cinq jours |
-| 1.0 | 2026-08-02 | Plan initial : trois contraintes trouvées chez l'intégration de référence, quatre jalons, les trois spikes restants rattachés |
+| 1.0 | 2026-08-02 | Plan initial : trois contraintes trouvées chez l'intégration de référence, quatre étapes, les trois spikes restants rattachés |
 
 Conception de référence : `2026-07-31-solana-yield-vault-design.md`, §3.3 et §5.
 Spike : `2026-07-31-spikes-ouverture.md`, S4.
@@ -123,30 +123,30 @@ marginfi confirme : ils ont des instructions dédiées par venue, `juplend_*`,
 `solend_*`, `kamino_*`. Sur un programme qui déplace de la valeur, la validation
 statique des comptes n'est pas un confort.
 
-## Jalons
+## Étapes
 
-**Jalon 1 - la CPI, et elle clôt S4.** Un dépôt et un retrait Jupiter Lend
+**Étape 1 - la CPI, et elle clôt S4.** Un dépôt et un retrait Jupiter Lend
 réussis sur devnet depuis notre programme, signatures consignées. C'est le
 critère de sortie de S4, qui n'a plus que cela à rendre. Passe par un module de
 types généré depuis l'IDL de l'éditeur, aucun paquet Rust n'étant publié ;
 marginfi procède de même avec un module dédié.
 
-**Jalon 2 - l'adaptateur, ses plafonds et son chemin d'urgence.** Un adaptateur
+**Étape 2 - l'adaptateur, ses plafonds et son chemin d'urgence.** Un adaptateur
 par venue sous `src/venues/`, plafond par protocole, retrait d'urgence. La
 valorisation d'une position lit `token_exchange_price` après rafraîchissement.
 
-**Jalon 3 - le schéma d'événements.** Spécification versionnée autonome, quatre
+**Étape 3 - le schéma d'événements.** Spécification versionnée autonome, quatre
 familles : dépôt, rachat, accroissement de frais, réallocation. Émission par
 auto-invocation et non par journal, décision déjà prise et argumentée dans la
 conception : les journaux sont tronqués sous charge, une piste d'audit ne peut
 pas reposer là-dessus.
 
-**Jalon 4 - la réallocation entre venues.** C'est là que la contrainte de taille
+**Étape 4 - la réallocation entre venues.** C'est là que la contrainte de taille
 mord : une trentaine de comptes, donc table de recherche d'adresses obligatoire.
 
 ## Les trois spikes restants, rattachés pour ne pas être oubliés
 
-**S4** est absorbé par le jalon 1 : il ne lui reste que la CPI, et elle est le
+**S4** est absorbé par l'étape 1 : il ne lui reste que la CPI, et elle est le
 premier geste de ce chantier.
 
 **S6**, trésorerie et distribution, reste **hors de ce chantier** et doit être
@@ -155,7 +155,7 @@ distribution éprouvé sur trois adresses, runbook de recharge. Son plafond est
 déjà mesuré. Il devient bloquant le jour d'une campagne, jamais avant, et c'est
 précisément pourquoi il se fait oublier.
 
-**S7**, validateur local forké du mainnet, est le **préalable du jalon 4** dès
+**S7**, validateur local forké du mainnet, est le **préalable de l'étape 4** dès
 que la jambe d'échange entre en jeu : Jupiter Swap n'existant pas sur devnet,
 c'est le seul moyen d'éprouver ce chemin sans prétendre qu'il tourne là où il ne
 tourne pas.
