@@ -11,6 +11,7 @@ import {
 import { Providers } from "./providers";
 import { lienTransaction, type Config } from "@/lib/config";
 import {
+  confirmer,
   deposer,
   enUnites,
   formater,
@@ -99,21 +100,21 @@ function Demonstration({ config }: { config: Config }) {
   /**
    * Envoi par le portefeuille. La composition vient de la bibliotheque
    * partagee ; ici on ne fait que signer et attendre.
+   *
+   * L'attente passe par `confirmer` et NON par `connection.confirmTransaction` :
+   * ce dernier s'abonne par WebSocket, et notre point d'acces refuse les
+   * abonnements. Voir le commentaire de `confirmer` dans `lib/vault.ts`.
    */
   const envoyer: Envoyer = useCallback(
     async (instructions: TransactionInstruction[]) => {
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("confirmed");
+      const empreinte = await connection.getLatestBlockhash("confirmed");
       const tx = new Transaction({
-        blockhash,
-        lastValidBlockHeight,
+        blockhash: empreinte.blockhash,
+        lastValidBlockHeight: empreinte.lastValidBlockHeight,
         feePayer: publicKey!,
       }).add(...instructions);
       const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(
-        { signature: sig, blockhash, lastValidBlockHeight },
-        "confirmed",
-      );
+      await confirmer(connection, sig, empreinte);
       return sig;
     },
     [connection, publicKey, sendTransaction],

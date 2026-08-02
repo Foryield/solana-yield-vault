@@ -1,5 +1,49 @@
 # Démonstration web - une page publique que quiconque peut essayer
 
+## 2026-08-02 - Les gestes sont signés depuis la page, et un bug de confirmation est corrigé
+
+**Ce que ça prouve** : dépôt et retrait ont été signés depuis la page avec
+Phantom, et sont passés sur devnet. Les deux points qui attendaient un
+portefeuille sont donc levés, l'écran connecté avec eux.
+
+**Et ce que ça a révélé** : l'interface se figeait après la signature, puis
+affichait « Signature ... has expired: block height exceeded », alors que la
+transaction était confirmée depuis longtemps et que les soldes bougeaient bien.
+Signalé sur les deux gestes, capture à l'appui, avec la transaction
+`59M24QFnim65hrQ5kxo5ViHqV2pFwERK1eUf3JPpmZza1rYXzzdPA9CqFQzVotavV25wqG9pNLtGCNjyW8vYf9Cb`.
+
+**La cause, mesurée et non supposée.** La page confirmait par
+`connection.confirmTransaction`, qui s'abonne à `signatureSubscribe` par
+WebSocket. Le point d'accès dédié accepte la connexion WebSocket mais **refuse
+les abonnements** :
+
+```
+signatureSubscribe -> {"code":-32601,"message":"Method 'signatureSubscribe' not found"}
+slotSubscribe      -> {"code":-32601,"message":"Method 'slotSubscribe' not found"}
+```
+
+La notification n'arrivait donc jamais. Au bout de la fenêtre de validité du
+bloc, web3.js déclarait la signature expirée : un message faux sur les deux
+plans, puisque rien n'avait expiré et que tout avait réussi.
+
+**C'était une régression de notre fait.** Le point d'accès public de devnet sert
+les abonnements ; le point d'accès dédié adopté le 01/08 pour échapper à sa
+limite de débit ne les sert pas. Le remède a introduit le mal, et personne ne
+pouvait le voir : il ne se manifeste qu'après une signature, c'est-à-dire
+exactement le geste qu'aucune vérification automatique ne pouvait faire.
+
+**La correction** : confirmation par sondage HTTP de `getSignatureStatuses`, la
+méthode que la ligne de commande de provisionnement emploie déjà. L'expiration
+se juge désormais sur la **hauteur de bloc**, seul critère qui distingue une
+transaction perdue d'une transaction lente. En cas d'échec on-chain, les
+journaux sont récupérés par `getTransaction` pour que le motif du refus reste
+lisible, ce que le statut seul ne porte pas.
+
+**La sonde a été étendue** au même moment. Elle vérifiait que le coffre se lit ;
+elle vérifie maintenant aussi que `getSignatureStatuses` répond, c'est-à-dire la
+capacité dont dépend réellement l'affichage. Une sonde qui n'exerce pas la
+dépendance ne la protège pas.
+
 ## 2026-08-01 - La démonstration est en ligne
 
 **Ce que ça prouve** : le coffre n'exige plus de cloner le dépôt ni de tenir une

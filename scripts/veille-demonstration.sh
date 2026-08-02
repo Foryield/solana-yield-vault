@@ -59,4 +59,23 @@ printf '%s' "$reponse" | grep -q '"error"' && echec "le point d'acces refuse : $
 printf '%s' "$reponse" | grep -q '"owner"' || echec "le coffre est illisible : $(printf '%s' "$reponse" | head -c 200)"
 echo "coffre : lisible"
 
+# 4. La methode dont depend la CONFIRMATION d'un geste.
+#
+# Ajoutee le 02/08 apres un bug signale sur la page en ligne : elle confirmait
+# par abonnement WebSocket, que ce point d'acces refuse (`signatureSubscribe` ->
+# -32601). Les transactions passaient et l'interface les declarait expirees. La
+# page sonde desormais `getSignatureStatuses` en HTTP ; cette sonde verifie donc
+# la capacite dont depend reellement l'affichage, et pas seulement la lecture.
+statuts=$(curl -sS --max-time 20 -X POST "$rpc" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $SITE" \
+  -H "Referer: $SITE/" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getSignatureStatuses","params":[["1111111111111111111111111111111111111111111111111111111111111111"]]}') \
+  || echec "getSignatureStatuses est injoignable"
+
+printf '%s' "$statuts" | grep -q '"error"' \
+  && echec "getSignatureStatuses refuse, la page ne saurait plus confirmer : $(printf '%s' "$statuts" | head -c 200)"
+printf '%s' "$statuts" | grep -q '"value"' || echec "getSignatureStatuses rend une reponse inattendue"
+echo "confirmation : disponible"
+
 echo "OK"

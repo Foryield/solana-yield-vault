@@ -39,6 +39,103 @@ export type Envoyer = (
   instructions: TransactionInstruction[],
 ) => Promise<string>;
 
+/**
+ * CONFIRMATION PAR SONDAGE, ET SURTOUT PAS PAR ABONNEMENT.
+ *
+ * `connection.confirmTransaction` s'abonne a `signatureSubscribe` par
+ * WebSocket. Notre point d'acces dedie ACCEPTE la connexion WebSocket mais
+ * refuse les abonnements : `Method 'signatureSubscribe' not found`, code -32601,
+ * mesure le 02/08. La notification n'arrivait donc jamais, et au bout de la
+ * fenetre de validite du bloc web3.js declarait la signature expiree, alors que
+ * la transaction etait passee depuis longtemps.
+ *
+ * Le sondage HTTP n'a pas cette dependance. C'est la meme methode que la ligne
+ * de commande de provisionnement emploie deja.
+ *
+ * L'expiration est jugee sur la HAUTEUR DE BLOC, pas sur un delai arbitraire :
+ * c'est le seul critere qui distingue une transaction reellement perdue d'une
+ * transaction lente. Tant que la hauteur n'a pas depasse la limite, on attend.
+ */
+export interface Empreinte {
+  blockhash: string;
+  lastValidBlockHeight: number;
+}
+
+/** Ce dont la confirmation a besoin. Type au plus juste, donc simulable. */
+export interface Sondeur {
+  getSignatureStatuses(signatures: string[]): Promise<{
+    value: ({ err: unknown; confirmationStatus?: string | null } | null)[];
+  }>;
+  getBlockHeight(): Promise<number>;
+  getTransaction(
+    signature: string,
+    config?: { maxSupportedTransactionVersion?: number },
+  ): Promise<{ meta?: { logMessages?: string[] | null } | null } | null>;
+}
+
+const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+export async function confirmer(
+  sondeur: Sondeur,
+  signature: string,
+  empreinte: Empreinte,
+  options: { delaiMs?: number; attendre?: (ms: number) => Promise<void> } = {},
+): Promise<void> {
+  const { delaiMs = 1500, attendre = dormir } = options;
+
+  for (;;) {
+    const { value } = await sondeur.getSignatureStatuses([signature]);
+    const statut = value[0];
+
+    if (statut) {
+      if (statut.err) {
+        // Le programme a refuse a l'execution. Les journaux ne sont pas dans le
+        // statut : on va les chercher, sans quoi le motif du refus serait perdu
+        // et la page afficherait un objet illisible a la place d'une regle.
+        throw Object.assign(
+          new Error(`La transaction a echoue : ${JSON.stringify(statut.err)}`),
+          { logs: await journauxDeLaTransaction(sondeur, signature) },
+        );
+      }
+      if (
+        statut.confirmationStatus === "confirmed" ||
+        statut.confirmationStatus === "finalized"
+      ) {
+        return;
+      }
+    }
+
+    // Rien encore. La transaction n'est perdue que si son bloc de reference a
+    // expire ET qu'aucun statut n'existe : au dela, elle ne peut plus entrer.
+    if (!statut) {
+      // Sans argument : la connexion porte deja son niveau d'engagement.
+      const hauteur = await sondeur.getBlockHeight();
+      if (hauteur > empreinte.lastValidBlockHeight) {
+        throw new Error(
+          "La transaction n'a pas ete incluse avant l'expiration de son bloc " +
+            "de reference. Rien n'a ete debite : reessayez.",
+        );
+      }
+    }
+
+    await attendre(delaiMs);
+  }
+}
+
+async function journauxDeLaTransaction(
+  sondeur: Sondeur,
+  signature: string,
+): Promise<string[]> {
+  try {
+    const tx = await sondeur.getTransaction(signature, {
+      maxSupportedTransactionVersion: 0,
+    });
+    return tx?.meta?.logMessages ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export interface EtatCoffre {
   actifDuCoffre: bigint;
   offreDeParts: bigint;

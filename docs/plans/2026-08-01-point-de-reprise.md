@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.2 | 2026-08-02 | Dépôt et retrait signés depuis la page ; le point d'accès dédié ne sert pas les abonnements, la confirmation passe au sondage |
 | 2.1 | 2026-08-02 | S4 partiel : marchés Jupiter Lend confirmés par l'IDL, l'allocateur peut être planifié |
 | 2.0 | 2026-08-02 | S5 CLOS : un portefeuille sous garde a déposé sur devnet, sans extension ni phrase de récupération |
 | 1.9 | 2026-08-02 | L'identifiant de credential se lit dans le défi et n'est plus réclamé à l'opérateur |
@@ -50,8 +51,14 @@ jamais tenu la clé. Preuve dans `docs/evidence/provisionnement-sous-garde.md`.
 sur un point d'accès dédié dont la clé ne rentre pas ici. Ce que le déploiement
 a appris est consigné dans `docs/evidence/demonstration-web.md`.
 
-Deux choses n'ont pas été vérifiées et demandent un portefeuille : **la
-signature des trois gestes depuis la page**, et **l'écran une fois connecté**.
+**Vérifié avec un portefeuille le 02/08** : dépôt et retrait signés depuis la
+page avec Phantom, passés sur devnet, écran connecté compris. Le transfert reste
+le seul geste non essayé depuis la page.
+
+Cette vérification a trouvé ce qu'aucun contrôle automatique ne pouvait trouver :
+la page se figeait après la signature puis déclarait la transaction expirée,
+alors qu'elle avait réussi. Corrigé, et consigné dans
+`docs/evidence/demonstration-web.md`.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
@@ -116,6 +123,13 @@ les dépendances trouvées à sa racine de construction AVANT d'exécuter quoi q
 ce soit, et cette installation-là déclenchait le `prepare` du paquet client trop
 tôt. D'où l'absence de `rootDir` : la racine du dépôt ne porte pas de
 `package.json`, donc rien n'y est installé d'office.
+
+**Un point d'accès RPC dédié ne sert pas forcément les abonnements.** Le nôtre
+accepte la connexion WebSocket et refuse `signatureSubscribe` en -32601. Tout ce
+qui repose dessus, `confirmTransaction` en tête, attend une notification qui
+n'arrive jamais puis ment sur la cause. Le point d'accès public, lui, les sert :
+le remède à la limite de débit a introduit ce défaut. Confirmer par sondage HTTP
+de `getSignatureStatuses`, jamais par abonnement.
 
 **Une adresse de programme tierce est propre à son cluster, et un SDK n'en porte
 qu'une.** Le paquet publié par l'éditeur de Jupiter Lend code en dur l'adresse du
