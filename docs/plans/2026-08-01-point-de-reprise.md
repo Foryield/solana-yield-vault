@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.7 | 2026-08-02 | Paquet de provisionnement écrit et éprouvé hors ligne ; il ne lui manque que le compte de service et sa preuve |
 | 1.6 | 2026-08-02 | Point d'accès dédié en service, le point ouvert est clos ; la démonstration sort de la liste des restes |
 | 1.5 | 2026-08-01 | La démonstration est en ligne et harmonisée sur la forme Soroban ; le point d'accès RPC devient un point ouvert |
 | 1.4 | 2026-08-01 | Premier déploiement Render en échec, cause trouvée : l'installation automatique de la plateforme précède la commande de construction |
@@ -17,9 +18,9 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 117 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
-21 à la démonstration), six contrôles d'intégration continue obligatoires,
-25 pull requests fusionnées.
+actifs réels**. 172 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+21 à la démonstration, 55 au paquet de provisionnement), sept contrôles
+d'intégration continue obligatoires, 29 pull requests fusionnées.
 
 | Élément | Adresse devnet |
 |---|---|
@@ -44,11 +45,24 @@ signature des trois gestes depuis la page**, et **l'écran une fois connecté**.
 
 ## Ce qui reste, dans l'ordre où je le ferais
 
-### 1. Le paquet de provisionnement sans portefeuille
+### 1. Le paquet de provisionnement : il ne lui manque qu'un compte
 
-Le parcours où l'utilisateur ne manipule ni extension ni phrase de
-récupération. Quatre briques indépendantes imprimant chacune une ligne JSON,
-sur le modèle du paquet équivalent du dépôt Soroban.
+Écrit le 02/08 sous `onboarding/`, avec cinq briques et non quatre : le robinet
+`requestAirdrop` de devnet ne distribue que du SOL et se trouve à sec en
+pratique, tandis que l'actif déposé n'a aucun robinet appelable par programme.
+Le financement par la trésorerie est donc une brique à part entière. Composition
+d'enveloppe, lecture de configuration, verrou de réseau, ordonnancement du
+parcours et codes de sortie sont éprouvés hors ligne, et l'intégration continue
+les exécute sans le moindre identifiant.
+
+**Ce qui manque est un geste d'exploitation, pas du code** : un compte de
+service dédié à cette démonstration et cadré à ses seules opérations, chez le
+fournisseur de garde. Son API refuse cette création à un compte de service, donc
+elle passe par la console. Sans lui, la chaîne ne peut pas rendre sa preuve, et
+c'est tout ce qui sépare le spike S5 de son verdict.
+
+Le plan et les trois verrous d'environnement sont dans
+[`2026-08-02-paquet-provisionnement-plan.md`](./2026-08-02-paquet-provisionnement-plan.md).
 
 ### 2. L'allocateur et le schéma d'événements
 
@@ -58,10 +72,12 @@ résolution. Rien n'est commencé.
 
 ### Spikes non bloquants restants
 
-S4 (Jupiter Lend en CPI), S5 (signature Solana par le fournisseur de garde),
-S6 (trésorerie et distribution), S7 (validateur forké du mainnet). S6 a déjà
-livré l'essentiel de son résultat par anticipation : le robinet plafonne à deux
-requêtes par tranche de huit heures.
+S4 (Jupiter Lend en CPI), S6 (trésorerie et distribution), S7 (validateur forké
+du mainnet). S6 a déjà livré l'essentiel de son résultat par anticipation : le
+robinet plafonne à deux requêtes par tranche de huit heures.
+
+S5 n'est plus un spike ouvert mais un chantier écrit qui attend son compte de
+service, cf. point 1 ci-dessus.
 
 ## Ce qu'il ne faut pas redécouvrir
 
@@ -98,6 +114,15 @@ les dépendances trouvées à sa racine de construction AVANT d'exécuter quoi q
 ce soit, et cette installation-là déclenchait le `prepare` du paquet client trop
 tôt. D'où l'absence de `rootDir` : la racine du dépôt ne porte pas de
 `package.json`, donc rien n'y est installé d'office.
+
+**Le fournisseur de garde n'a pas d'API de bac à sable**, et l'hôte
+historiquement présenté comme tel est déprécié. Un seul hôte sert le mainnet et
+les réseaux de test : aucune vérification d'URL ne sépare donc la production du
+reste, contrairement à ce que le garde-fou S5 supposait d'abord. Ce qui les
+sépare est le compte de service, la permission qui lui est attachée, et le
+réseau demandé. Seul le dernier est vérifiable par un programme, d'où la
+constante figée dans `onboarding/src/config.ts` et la lecture de l'empreinte de
+genèse avant tout geste.
 
 **La pile BPF déborde silencieusement** au-delà de quelques comptes
 désérialisés. Les mettre sur le tas d'emblée.
