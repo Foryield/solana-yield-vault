@@ -72,10 +72,22 @@ La conception en annonçait quatre, par transposition du dépôt Stellar. Solana
 en impose une cinquième, pour une raison qui n'est pas un détail.
 
 Sur Stellar, un portefeuille neuf est créé et financé par un robinet appelable
-en une requête. Sur Solana, la distribution en ligne de commande est bloquée en
-pratique sur devnet (constat du spike S3) et le robinet de l'émetteur de l'actif
-plafonne à deux demandes par tranche de huit heures, par adresse, via une page
-web. **Aucun robinet n'est appelable par programme pour un portefeuille neuf.**
+en une requête, et ce robinet suffit parce que l'actif déposé y est l'actif
+natif.
+
+Solana a bien un robinet appelable par RPC, `requestAirdrop`, et il ne faut pas
+prétendre le contraire. Deux choses le rendent inutilisable ici.
+
+**Il est à sec en pratique.** Mesuré le 02/08 contre `api.devnet.solana.com` :
+`Internal error` pour une demande de 1 SOL, et pour 0,5 SOL un 429 annonçant la
+limite atteinte ou le robinet à sec, avec renvoi vers la page web. Le spike S3
+faisait le même constat le 31/07, depuis une autre adresse.
+
+**Et surtout, il ne distribue que du SOL.** L'actif déposé, lui, n'a aucun
+robinet appelable par programme : celui de son émetteur est une page web,
+plafonnée à deux demandes par tranche de huit heures et par adresse. La dotation
+par la trésorerie serait donc nécessaire **même si l'airdrop répondait**, et
+c'est l'argument qui compte, parce qu'il ne dépend d'aucune mesure du jour.
 
 Le financement vient donc de la clé de trésorerie, ce que la conception avait
 anticipé sans en tirer la conséquence : c'est une brique, pas une note de bas de

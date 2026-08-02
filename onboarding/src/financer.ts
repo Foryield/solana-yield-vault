@@ -14,10 +14,19 @@ import {
  * Deuxieme brique, ET LA SEULE QUE LE DEPOT STELLAR N'A PAS.
  *
  * La-bas, un portefeuille neuf est cree et finance par un robinet appelable en
- * une requete. Ici, rien de tel : la distribution en ligne de commande est
- * bloquee en pratique sur devnet, et le robinet de l'emetteur de l'actif
- * plafonne a deux demandes par tranche de huit heures, par adresse, depuis une
- * page web. Aucun robinet n'est appelable par programme pour une adresse neuve.
+ * une requete, et ce robinet suffit parce que l'actif depose y est l'actif
+ * natif.
+ *
+ * Solana a bien un robinet appelable par RPC, `requestAirdrop`. Il est a sec en
+ * pratique : mesure le 02/08 sur devnet, il rend une erreur interne a 1 SOL et
+ * un 429 "limite atteinte ou robinet a sec" a 0,5 SOL. Le spike S3 faisait le
+ * meme constat le 31/07.
+ *
+ * Mais surtout IL NE DISTRIBUE QUE DU SOL, et c'est la raison qui ne depend
+ * d'aucune mesure du jour : l'actif depose n'a aucun robinet appelable par
+ * programme, celui de son emetteur etant une page web plafonnee a deux demandes
+ * par tranche de huit heures et par adresse. Cette brique serait donc necessaire
+ * meme si l'airdrop repondait.
  *
  * Le financement vient donc de la tresorerie, qui signe LOCALEMENT. C'est la
  * seule brique ou une cle nous appartient.

@@ -60,10 +60,12 @@ npm run provisionner -- <identifiant>
 
 **Financer** : doter l'adresse en SOL et en actif, et ouvrir ses deux comptes de
 jeton. Signe avec la cle de tresorerie. C'est la brique que la version Stellar
-n'a pas : la-bas un robinet finance un compte neuf en une requete, ici la
-distribution en ligne de commande est bloquee en pratique sur devnet et le
-robinet de l'emetteur plafonne a deux demandes par tranche de huit heures, par
-adresse, depuis une page web.
+n'a pas. Solana a bien un robinet appelable par RPC, `requestAirdrop`, mais il
+est a sec en pratique (mesure du 02/08 : erreur interne a 1 SOL, 429 a 0,5 SOL)
+et surtout il ne distribue que du SOL. L'actif depose, lui, n'a aucun robinet
+appelable par programme : celui de son emetteur est une page web plafonnee a
+deux demandes par tranche de huit heures et par adresse. Cette brique serait
+donc necessaire meme si l'airdrop repondait.
 
 ```bash
 npm run financer -- <adresse> [actif-en-unites] [lamports]

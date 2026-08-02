@@ -47,9 +47,10 @@ signature des trois gestes depuis la page**, et **l'écran une fois connecté**.
 
 ### 1. Le paquet de provisionnement : il ne lui manque qu'un compte
 
-Écrit le 02/08 sous `onboarding/`, avec cinq briques et non quatre : aucun
-robinet Solana n'étant appelable par programme pour une adresse neuve, le
-financement par la trésorerie est une brique à part entière. Composition
+Écrit le 02/08 sous `onboarding/`, avec cinq briques et non quatre : le robinet
+`requestAirdrop` de devnet ne distribue que du SOL et se trouve à sec en
+pratique, tandis que l'actif déposé n'a aucun robinet appelable par programme.
+Le financement par la trésorerie est donc une brique à part entière. Composition
 d'enveloppe, lecture de configuration, verrou de réseau, ordonnancement du
 parcours et codes de sortie sont éprouvés hors ligne, et l'intégration continue
 les exécute sans le moindre identifiant.
