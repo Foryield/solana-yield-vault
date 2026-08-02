@@ -8,5 +8,6 @@
 //! `7tjE28izRUjzmxC1QNXnNwcc4N82CNYCexf3k8mw67s3`. Elle est PROPRE A DEVNET :
 //! le paquet publie par l'editeur code en dur celle du mainnet, absente d'ici.
 
+pub mod cpi;
 pub mod lending;
 pub mod math;
