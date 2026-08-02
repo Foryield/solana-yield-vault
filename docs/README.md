@@ -36,7 +36,7 @@ dans [`CONTRIBUTING.md`](../CONTRIBUTING.md) à la racine.
 | S2 | Mesure de couverture sur cible BPF | oui | **rendu** (31/07) |
 | S3 | Alignement des versions et amorçage | oui | **clos** (31/07) |
 | S4 | Jupiter Lend en CPI | non | à faire |
-| S5 | Signature et diffusion Solana via DFNS | non | **écrit** (02/08), attend son compte de service |
+| S5 | Signature et diffusion Solana via DFNS | non | **clos** (02/08) |
 | S6 | Trésorerie devnet et runbook de distribution | non | à faire |
 | S7 | Validateur local forké du mainnet | non | à faire |
 
@@ -107,11 +107,6 @@ est consigné dans
 [`evidence/demonstration-web.md`](./evidence/demonstration-web.md).
 
 ## Ce qui n'est pas encore là
-
-Le **paquet de provisionnement** est écrit et éprouvé hors ligne depuis le
-02/08, mais il n'a pas encore rendu sa preuve : il lui manque un compte de
-service dédié chez le fournisseur de garde, ce qui est un geste d'exploitation
-et non du code.
 
 L'**allocateur** et le **schéma d'événements de conformité** sont conçus et non
 écrits. Restent aussi les spikes S4, S6 et S7.
