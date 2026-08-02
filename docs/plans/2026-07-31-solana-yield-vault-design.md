@@ -310,9 +310,15 @@ routage Jupiter Swap tourne sur devnet.
    EURC de Circle sont bien deux des quatre marchés, et les deux sont alimentés.
    La valorisation se lit dans le marché même, champ `token_exchange_price`,
    récompenses comprises. Détail en S4.
-5. Hébergement de la démonstration. **Ouvert.**
-6. Clé d'exploitation devnet et approvisionnement en SOL, préalable au premier
-   déploiement. Aucune clé n'existe sur la machine de développement et le CLI
-   pointe par défaut sur `mainnet-beta`. **Ouvert**, rejoint S6.
+5. ~~Hébergement de la démonstration.~~ **Tranché le 01/08** : Render en service
+   statique depuis le blueprint du dépôt, sous-domaine `solana.for-yield.com`,
+   point d'accès dédié dont la clé ne réside pas ici. Ce que le déploiement a
+   appris est dans `evidence/demonstration-web.md`.
+6. ~~Clé d'exploitation devnet et approvisionnement en SOL.~~ **Tranché le
+   31/07** : la clé existe, elle est approvisionnée, et sa phrase de
+   récupération a été vérifiée par dérivation indépendante le 01/08. Le piège du
+   CLI pointant par défaut sur `mainnet-beta` est traité par une configuration
+   qui refuse de deviner le réseau. Reste de S6 : le runbook de distribution.
 
-Ces cinq points sont traités par `2026-07-31-spikes-ouverture.md`.
+Les six points sont traités par `2026-07-31-spikes-ouverture.md`. Tous sont
+tranchés au 02/08.

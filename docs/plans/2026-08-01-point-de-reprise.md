@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.3 | 2026-08-02 | Points ouverts 5 et 6 de la conception clos, ils l'étaient depuis des jours ; décomptes remis à jour |
 | 2.2 | 2026-08-02 | Dépôt et retrait signés depuis la page ; le point d'accès dédié ne sert pas les abonnements, la confirmation passe au sondage |
 | 2.1 | 2026-08-02 | S4 partiel : marchés Jupiter Lend confirmés par l'IDL, l'allocateur peut être planifié |
 | 2.0 | 2026-08-02 | S5 CLOS : un portefeuille sous garde a déposé sur devnet, sans extension ni phrase de récupération |
@@ -23,9 +24,11 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 ## Acquis
 
 Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 182 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
-21 à la démonstration, 65 au paquet de provisionnement), sept contrôles
-d'intégration continue obligatoires, 29 pull requests fusionnées.
+actifs réels**. 187 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+26 à la démonstration, 65 au paquet de provisionnement), sept contrôles
+d'intégration continue obligatoires, 35 pull requests fusionnées.
+
+**Tous les points ouverts de la conception sont tranchés.**
 
 | Élément | Adresse devnet |
 |---|---|
