@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.1 | 2026-08-02 | Vérification chiffrée : la formule simplifiée diverge dans 99,64 % des cas et ferait rejeter tous les dépôts ; marché devnet mesuré non rafraîchi depuis cinq jours |
 | 1.0 | 2026-08-02 | Plan initial : trois contraintes trouvées chez l'intégration de référence, quatre jalons, les trois spikes restants rattachés |
 
 Conception de référence : `2026-07-31-solana-yield-vault-design.md`, §3.3 et §5.
@@ -20,11 +21,14 @@ change trois choses.
 
 **Le taux doit être rafraîchi dans la même transaction.** Le compte de marché
 porte `token_exchange_price`, mais cette valeur n'est actualisée que par une
-instruction `updateRate` du programme de prêt. marginfi l'appelle en invocation
+instruction `updateRate` du programme de prêt, que marginfi appelle en invocation
 croisée **avant** chaque dépôt et chaque retrait. Une position valorisée sans ce
 rafraîchissement est fausse d'autant d'intérêts et de récompenses qu'il s'est
-écoulé de temps depuis la dernière activité du marché, et un marché peu actif
-peut être très en retard.
+écoulé de temps depuis la dernière activité du marché.
+
+**Et le marché peu actif dont le guide met en garde, c'est le nôtre.** Lu le
+02/08 sur le marché USDC devnet : son dernier rafraîchissement datait du
+28 juillet, soit cinq jours. Le risque n'est donc pas théorique, il est déjà là.
 
 **Un retrait ne peut pas viser une adresse dérivée.** Le programme de prêt ne
 sait pas verser vers un compte détenu par un programme : marginfi fait atterrir
@@ -56,10 +60,23 @@ normal = plancher(brut * prix_liquidite / 1e12)
 parts  = plancher(normal * 1e12 / prix_jeton)
 ```
 
-La simplification en une seule division donne un résultat différent d'une unité
-sur certaines valeurs, et cette unité suffit à faire échouer la vérification
-décrite plus bas. La précision `1e12` est une constante du protocole, pas une
-convention de notre côté.
+**Mesuré le 02/08 contre les taux réels du marché USDC devnet**, plutôt
+qu'affirmé : sur les deux millions de montants compris entre une unité minimale
+et deux USDC, la formule simplifiée en une seule division diverge de la vraie
+dans **99,64 % des cas**. Ce n'est donc pas un cas limite, c'est le cas général,
+et la première rédaction de ce plan le sous-estimait en parlant de « certaines
+valeurs ».
+
+La divergence va toujours dans le même sens : la conversion en deux temps rend
+**toujours moins ou autant** que la simplifiée. Conséquence directe sur la
+décision ci-dessous : avec un plancher exigé, une formule simplifiée
+surestimerait l'attendu et **ferait rejeter tous les dépôts**. Se tromper ici ne
+produit pas une valorisation légèrement fausse, cela produit un coffre qui
+n'accepte plus rien.
+
+La précision `1e12` est une constante du protocole, pas une convention de notre
+côté : elle est nommée `EXCHANGE_PRICES_PRECISION` chez l'éditeur et reprise
+telle quelle par l'intégration de référence.
 
 ## Deux approches pour se protéger d'une invocation croisée
 
