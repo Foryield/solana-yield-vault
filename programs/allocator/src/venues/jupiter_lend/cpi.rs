@@ -5,19 +5,32 @@
 //! eprouvables sans validateur, alors qu'elles portent la partie la plus facile
 //! a se tromper de toute l'integration : l'ordre des comptes.
 //!
-//! L'ORDRE VIENT DE L'IDL PUBLIE PAR L'EDITEUR, releve le 02/08. Il n'est ni
-//! devine ni deduit d'une autre instruction, et surtout PAS PARTAGE entre depot
-//! et retrait : les deux listes different par deux positions echangees et un
+//! L'ORDRE VIENT DE L'IDL PUBLIE PAR L'EDITEUR, releve le 02/08 et relu le
+//! 04/08 sur le paquet `@jup-ag/lend` 0.1.10. Il n'est ni devine ni deduit
+//! d'une autre instruction, et surtout PAS PARTAGE entre depot et retrait : les
+//! deux listes different par une ROTATION des rangs quatre a six et par un
 //! compte insere au milieu. Un compte au mauvais rang produit l'echec le plus
 //! opaque de Solana, celui qui ne nomme rien.
+//!
+//! LES DEUX INSTRUCTIONS EMPLOYEES SONT LES VARIANTES BORNEES, et c'est une
+//! decision : l'editeur expose `deposit` et `withdraw` nus, mais aussi
+//! `depositWithMinAmountOut` et `withdrawWithMaxSharesBurn`, qui portent la
+//! borne dans leur charge utile et la font respecter par le programme qui emet
+//! reellement les jetons. Memes comptes, meme ordre, un argument de plus. La
+//! relecture du 04/08 les a trouvees ; celle du 02/08 les avait manquees.
+//! L'allocateur ne compose donc JAMAIS un mouvement non borne : la variante nue
+//! n'est pas exposee ici, pour qu'aucun appelant ne puisse en fabriquer un.
 
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 
 /// Discriminateurs des instructions, releves dans l'IDL et verifies conformes a
-/// la convention `sha256("global:<nom>")[0..8]` le 02/08.
+/// la convention `sha256("global:<nom>")[0..8]`.
 pub const DISCRIMINATEUR_RAFRAICHIR: [u8; 8] = [24, 225, 53, 189, 72, 212, 225, 178];
-pub const DISCRIMINATEUR_DEPOT: [u8; 8] = [242, 35, 198, 137, 82, 225, 242, 182];
+/// `depositWithMinAmountOut`, et non `deposit` : voir l'en-tete du module.
+pub const DISCRIMINATEUR_DEPOT: [u8; 8] = [116, 144, 16, 97, 118, 109, 40, 119];
+/// `withdrawWithMaxSharesBurn`, et non `withdraw` : voir l'en-tete du module.
+pub const DISCRIMINATEUR_RETRAIT: [u8; 8] = [47, 197, 183, 171, 239, 18, 245, 171];
 
 /// Les cinq comptes du rafraichissement de taux.
 ///
@@ -76,13 +89,26 @@ pub struct ComptesDepot {
     pub programme_systeme: Pubkey,
 }
 
-/// Depose `actif` unites et recoit des jetons de recu.
+/// Depose `actif` unites et recoit AU MOINS `parts_minimales` jetons de recu.
 ///
-/// Le montant est en unites minimales, comme partout dans ce depot, et encode
-/// en petit-boutiste derriere le discriminateur.
-pub fn instruction_depot(programme: Pubkey, c: &ComptesDepot, actif: u64) -> Instruction {
+/// Les deux montants sont en unites minimales, comme partout dans ce depot, et
+/// encodes en petit-boutiste derriere le discriminateur, dans l'ordre de l'IDL :
+/// `assets` puis `minAmountOut`.
+///
+/// LA BORNE EST FAITE RESPECTER PAR L'EDITEUR, ce qui change la nature de notre
+/// arithmetique : elle n'a plus a reproduire leur arrondi, seulement a le
+/// MINORER. Un changement d'arrondi chez eux ne casse donc plus notre coffre,
+/// ce qui etait le seul reproche fait a l'egalite stricte. L'allocateur mesure
+/// quand meme le solde avant et apres, pour constater plutot que croire.
+pub fn instruction_depot(
+    programme: Pubkey,
+    c: &ComptesDepot,
+    actif: u64,
+    parts_minimales: u64,
+) -> Instruction {
     let mut data = DISCRIMINATEUR_DEPOT.to_vec();
     data.extend_from_slice(&actif.to_le_bytes());
+    data.extend_from_slice(&parts_minimales.to_le_bytes());
 
     Instruction {
         program_id: programme,
@@ -98,6 +124,84 @@ pub fn instruction_depot(programme: Pubkey, c: &ComptesDepot, actif: u64) -> Ins
             AccountMeta::new(c.position_de_liquidite, false),
             AccountMeta::new_readonly(c.modele_de_taux, false),
             AccountMeta::new(c.coffre_de_la_venue, false),
+            AccountMeta::new(c.liquidite, false),
+            AccountMeta::new(c.programme_de_liquidite, false),
+            AccountMeta::new_readonly(c.modele_de_recompenses, false),
+            AccountMeta::new_readonly(c.programme_de_jeton, false),
+            AccountMeta::new_readonly(c.programme_de_compte_associe, false),
+            AccountMeta::new_readonly(c.programme_systeme, false),
+        ],
+        data,
+    }
+}
+
+/// Les dix-huit comptes du retrait, dans l'ordre de l'IDL.
+///
+/// CETTE LISTE N'EST PAS CELLE DU DEPOT, et elle ne s'en deduit pas. Deux
+/// differences, toutes deux silencieuses si on les manque. D'abord une
+/// ROTATION des rangs quatre a six, et non un echange deux a deux : `actif`
+/// descend du rang quatre au rang six, `administration` remonte du cinq au
+/// quatre, `marche` remonte du six au cinq. Ensuite `compte_de_reclamation`
+/// s'insere au rang douze, decalant d'un cran tout ce qui suit. Les champs
+/// sont donc redeclares en entier plutot que partages avec le depot : un
+/// facteur commun ici economiserait quinze lignes et couterait un compte au
+/// mauvais rang.
+pub struct ComptesRetrait {
+    pub signataire: Pubkey,
+    pub recu_du_proprietaire: Pubkey,
+    pub actif_du_destinataire: Pubkey,
+    pub administration: Pubkey,
+    pub marche: Pubkey,
+    pub actif: Pubkey,
+    pub jeton_de_recu: Pubkey,
+    pub reserves_de_liquidite: Pubkey,
+    pub position_de_liquidite: Pubkey,
+    pub modele_de_taux: Pubkey,
+    pub coffre_de_la_venue: Pubkey,
+    /// N'EXISTE QUE COTE RETRAIT. Adresse derivee du programme de recompenses,
+    /// que rien ne cree automatiquement : elle doit exister AVANT le premier
+    /// retrait, et c'est un prealable d'exploitation, pas un detail.
+    pub compte_de_reclamation: Pubkey,
+    pub liquidite: Pubkey,
+    pub programme_de_liquidite: Pubkey,
+    pub modele_de_recompenses: Pubkey,
+    pub programme_de_jeton: Pubkey,
+    pub programme_de_compte_associe: Pubkey,
+    pub programme_systeme: Pubkey,
+}
+
+/// Retire `actif` unites en brulant AU PLUS `parts_maximales` jetons de recu.
+///
+/// LA BORNE EST DANS L'AUTRE SENS QUE CELLE DU DEPOT, et c'est ce qui la rend
+/// juste : au depot on exige un minimum recu, au retrait on impose un maximum
+/// paye. Les deux protegent contre le meme evenement, un tiers qui rendrait
+/// moins que prevu, mais un retrait se demande en unites d'actif et se paie en
+/// parts, donc c'est le prix qui se plafonne.
+pub fn instruction_retrait(
+    programme: Pubkey,
+    c: &ComptesRetrait,
+    actif: u64,
+    parts_maximales: u64,
+) -> Instruction {
+    let mut data = DISCRIMINATEUR_RETRAIT.to_vec();
+    data.extend_from_slice(&actif.to_le_bytes());
+    data.extend_from_slice(&parts_maximales.to_le_bytes());
+
+    Instruction {
+        program_id: programme,
+        accounts: vec![
+            AccountMeta::new(c.signataire, true),
+            AccountMeta::new(c.recu_du_proprietaire, false),
+            AccountMeta::new(c.actif_du_destinataire, false),
+            AccountMeta::new_readonly(c.administration, false),
+            AccountMeta::new(c.marche, false),
+            AccountMeta::new_readonly(c.actif, false),
+            AccountMeta::new(c.jeton_de_recu, false),
+            AccountMeta::new(c.reserves_de_liquidite, false),
+            AccountMeta::new(c.position_de_liquidite, false),
+            AccountMeta::new_readonly(c.modele_de_taux, false),
+            AccountMeta::new(c.coffre_de_la_venue, false),
+            AccountMeta::new(c.compte_de_reclamation, false),
             AccountMeta::new(c.liquidite, false),
             AccountMeta::new(c.programme_de_liquidite, false),
             AccountMeta::new_readonly(c.modele_de_recompenses, false),
@@ -144,7 +248,7 @@ mod tests {
     /// de l'IDL. Une permutation ne se verrait pas a la compilation.
     #[test]
     fn le_depot_place_ses_dix_sept_comptes_dans_l_ordre_de_l_idl() {
-        let ix = instruction_depot(cle(99), &comptes_depot(), 1);
+        let ix = instruction_depot(cle(99), &comptes_depot(), 1, 1);
         assert_eq!(ix.accounts.len(), 17);
         for (rang, meta) in ix.accounts.iter().enumerate() {
             assert_eq!(meta.pubkey, cle(rang as u8 + 1));
@@ -155,7 +259,7 @@ mod tests {
     /// echouer la transaction a l'execution, sans rien nommer d'utile.
     #[test]
     fn le_depot_declare_les_bons_droits_d_ecriture() {
-        let ix = instruction_depot(cle(99), &comptes_depot(), 1);
+        let ix = instruction_depot(cle(99), &comptes_depot(), 1, 1);
         let en_ecriture: Vec<usize> = ix
             .accounts
             .iter()
@@ -170,7 +274,7 @@ mod tests {
     /// adresse derivee : s'il y en avait un second, il faudrait le savoir.
     #[test]
     fn le_depot_n_attend_qu_un_signataire() {
-        let ix = instruction_depot(cle(99), &comptes_depot(), 1);
+        let ix = instruction_depot(cle(99), &comptes_depot(), 1, 1);
         let signataires: Vec<usize> = ix
             .accounts
             .iter()
@@ -181,17 +285,22 @@ mod tests {
         assert_eq!(signataires, vec![0]);
     }
 
+    /// L'ORDRE DES DEUX ARGUMENTS EST CELUI DE L'IDL, `assets` puis
+    /// `minAmountOut`. Les intervertir ne casserait ni la compilation ni la
+    /// taille de la charge utile : le depot demanderait le montant en plancher
+    /// et le plancher en montant, ce qui echouerait tres loin d'ici.
     #[test]
-    fn le_depot_encode_son_montant_en_petit_boutiste() {
-        let ix = instruction_depot(cle(99), &comptes_depot(), 500_000);
+    fn le_depot_encode_son_montant_puis_son_plancher_en_petit_boutiste() {
+        let ix = instruction_depot(cle(99), &comptes_depot(), 500_000, 494_904);
         assert_eq!(ix.data[0..8], DISCRIMINATEUR_DEPOT);
-        assert_eq!(ix.data.len(), 16);
+        assert_eq!(ix.data.len(), 24);
         assert_eq!(&ix.data[8..16], &500_000u64.to_le_bytes());
+        assert_eq!(&ix.data[16..24], &494_904u64.to_le_bytes());
     }
 
     #[test]
     fn le_depot_vise_le_programme_qu_on_lui_donne() {
-        let ix = instruction_depot(cle(99), &comptes_depot(), 1);
+        let ix = instruction_depot(cle(99), &comptes_depot(), 1, 1);
         assert_eq!(ix.program_id, cle(99));
     }
 
@@ -228,12 +337,132 @@ mod tests {
             reserves_de_liquidite: d.reserves_de_liquidite,
             modele_de_recompenses: d.modele_de_recompenses,
         };
-        let depot = instruction_depot(cle(99), &d, 1);
+        let depot = instruction_depot(cle(99), &d, 1, 1);
         let rafraichir = instruction_rafraichir(cle(99), &r);
         let du_depot: Vec<Pubkey> = depot.accounts.iter().map(|m| m.pubkey).collect();
         assert!(rafraichir
             .accounts
             .iter()
             .all(|m| du_depot.contains(&m.pubkey)));
+    }
+
+    fn comptes_retrait() -> ComptesRetrait {
+        ComptesRetrait {
+            signataire: cle(1),
+            recu_du_proprietaire: cle(2),
+            actif_du_destinataire: cle(3),
+            administration: cle(4),
+            marche: cle(5),
+            actif: cle(6),
+            jeton_de_recu: cle(7),
+            reserves_de_liquidite: cle(8),
+            position_de_liquidite: cle(9),
+            modele_de_taux: cle(10),
+            coffre_de_la_venue: cle(11),
+            compte_de_reclamation: cle(12),
+            liquidite: cle(13),
+            programme_de_liquidite: cle(14),
+            modele_de_recompenses: cle(15),
+            programme_de_jeton: cle(16),
+            programme_de_compte_associe: cle(17),
+            programme_systeme: cle(18),
+        }
+    }
+
+    /// Le jumeau du test qui porte le depot. Dix-huit rangs, tous verifies.
+    #[test]
+    fn le_retrait_place_ses_dix_huit_comptes_dans_l_ordre_de_l_idl() {
+        let ix = instruction_retrait(cle(99), &comptes_retrait(), 1, 1);
+        assert_eq!(ix.accounts.len(), 18);
+        for (rang, meta) in ix.accounts.iter().enumerate() {
+            assert_eq!(meta.pubkey, cle(rang as u8 + 1));
+        }
+    }
+
+    #[test]
+    fn le_retrait_declare_les_bons_droits_d_ecriture() {
+        let ix = instruction_retrait(cle(99), &comptes_retrait(), 1, 1);
+        let en_ecriture: Vec<usize> = ix
+            .accounts
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.is_writable)
+            .map(|(i, _)| i + 1)
+            .collect();
+        assert_eq!(en_ecriture, vec![1, 2, 3, 5, 7, 8, 9, 11, 12, 13, 14]);
+    }
+
+    #[test]
+    fn le_retrait_n_attend_qu_un_signataire() {
+        let ix = instruction_retrait(cle(99), &comptes_retrait(), 1, 1);
+        let signataires: Vec<usize> = ix
+            .accounts
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.is_signer)
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(signataires, vec![0]);
+    }
+
+    #[test]
+    fn le_retrait_encode_son_montant_puis_son_plafond_en_petit_boutiste() {
+        let ix = instruction_retrait(cle(99), &comptes_retrait(), 500_000, 494_904);
+        assert_eq!(ix.data[0..8], DISCRIMINATEUR_RETRAIT);
+        assert_eq!(ix.data.len(), 24);
+        assert_eq!(&ix.data[8..16], &500_000u64.to_le_bytes());
+        assert_eq!(&ix.data[16..24], &494_904u64.to_le_bytes());
+    }
+
+    #[test]
+    fn le_retrait_vise_le_programme_qu_on_lui_donne() {
+        let ix = instruction_retrait(cle(99), &comptes_retrait(), 1, 1);
+        assert_eq!(ix.program_id, cle(99));
+    }
+
+    /// LE TEST QUI JUSTIFIE DE NE RIEN PARTAGER entre les deux listes. Nourris
+    /// des MEMES trois comptes, le depot et le retrait ne les rangent pas
+    /// pareil : les rangs quatre a six TOURNENT d'un cran, ils ne s'echangent
+    /// pas deux a deux. Ecrit avec des cles distinctes de celles des jeux
+    /// ci-dessus, pour qu'une confusion de rang ne puisse pas tomber juste par
+    /// coincidence de valeur.
+    #[test]
+    fn le_retrait_ne_reprend_pas_l_ordre_du_depot() {
+        let actif = cle(201);
+        let administration = cle(202);
+        let marche = cle(203);
+
+        let mut d = comptes_depot();
+        d.actif = actif;
+        d.administration = administration;
+        d.marche = marche;
+        let depot = instruction_depot(cle(99), &d, 1, 1);
+
+        let mut r = comptes_retrait();
+        r.actif = actif;
+        r.administration = administration;
+        r.marche = marche;
+        let retrait = instruction_retrait(cle(99), &r, 1, 1);
+
+        // Rangs quatre, cinq et six, comptes a partir de un.
+        assert_eq!(depot.accounts[3].pubkey, actif);
+        assert_eq!(depot.accounts[4].pubkey, administration);
+        assert_eq!(depot.accounts[5].pubkey, marche);
+
+        assert_eq!(retrait.accounts[3].pubkey, administration);
+        assert_eq!(retrait.accounts[4].pubkey, marche);
+        assert_eq!(retrait.accounts[5].pubkey, actif);
+    }
+
+    /// LES VARIANTES NUES SONT UNE FAUTE ICI, pas une alternative. Leurs
+    /// discriminateurs sont figes comme valeurs INTERDITES : retomber sur
+    /// `deposit` ou `withdraw` retirerait la borne de la charge utile sans
+    /// toucher a un seul compte, donc sans que rien d'autre ne s'en apercoive.
+    #[test]
+    fn aucune_instruction_ne_retombe_sur_la_variante_non_bornee() {
+        const DEPOT_NU: [u8; 8] = [242, 35, 198, 137, 82, 225, 242, 182];
+        const RETRAIT_NU: [u8; 8] = [183, 18, 70, 156, 148, 109, 161, 34];
+        assert_ne!(DISCRIMINATEUR_DEPOT, DEPOT_NU);
+        assert_ne!(DISCRIMINATEUR_RETRAIT, RETRAIT_NU);
     }
 }

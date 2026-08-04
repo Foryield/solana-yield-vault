@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.4 | 2026-08-04 | Étape 1 câblée. L'éditeur expose des instructions bornées que la lecture du 02/08 avait manquées : le plancher est désormais appliqué des deux côtés. Rotation des rangs 4 à 6 corrigée |
 | 1.3 | 2026-08-03 | Autorité de signature tranchée : une par position, actif et venue, pour que le défaut d'un adaptateur reste borné à sa venue |
 | 1.2 | 2026-08-02 | Comptes relevés dans l'IDL : dix-sept et dix-huit confirmés, les deux ordres diffèrent, le rafraîchissement du taux ne coûte aucun compte |
 | 1.1 | 2026-08-02 | Vérification chiffrée : la formule simplifiée diverge dans 99,64 % des cas et ferait rejeter tous les dépôts ; marché devnet mesuré non rafraîchi depuis cinq jours |
@@ -105,6 +106,39 @@ contre un versement insuffisant, et rend visible ce qu'elle tolère. C'est la
 même logique que le montant minimal de sortie déjà retenu pour la jambe
 d'échange, transposée à une jambe de prêt.
 
+### Correction du 04/08 : l'éditeur sait déjà faire respecter ce plancher
+
+La relecture de l'IDL avant d'écrire le câblage a trouvé deux instructions que
+le relevé du 02/08 avait manquées, parce qu'il s'était arrêté à `deposit` et
+`withdraw` : **`depositWithMinAmountOut(assets, minAmountOut)`** et
+**`withdrawWithMaxSharesBurn(amount, maxSharesBurn)`**. Mêmes comptes, même
+ordre, mêmes droits d'écriture, un argument de plus. Autrement dit, le plancher
+décidé ci-dessus, le programme qui émet réellement les jetons sait le faire
+respecter lui-même.
+
+**Les deux protections sont retenues, et c'est un choix, pas une hésitation.**
+La borne voyage dans la charge utile, donc la venue refuse avant d'écrire quoi
+que ce soit ; et l'allocateur mesure quand même les soldes avant et après. La
+seconde ne coûte que deux soustractions sur des valeurs que nous lisons
+nous-mêmes et ne suppose rien du code du tiers, pas même que sa propre garde
+fonctionne.
+
+Cette découverte **renforce (B) au lieu de la remettre en cause**, et sur son
+point faible. Le reproche fait à (A) était qu'elle exige de reproduire l'arrondi
+du tiers ; avec une borne qu'il applique lui-même, notre arithmétique n'a plus
+qu'à le **minorer**. Un changement d'arrondi chez eux ne casse donc plus rien.
+
+Une asymétrie subsiste et elle est assumée : le plancher du dépôt est calculé
+sur la chaîne, le plafond du retrait vient de l'appelant. Motif : la conversion
+du dépôt a été **mesurée** contre les prix réels du marché, celle du retrait ne
+l'a pas été et rien de ce que publie l'éditeur ne la donne. La déduire serait
+inventer une borne, exactement ce que ce plan reproche à la formule simplifiée :
+trop serrée, elle ferait échouer tous les retraits. **L'étape 2 la reprendra sur
+la chaîne le jour où elle aura été mesurée.** En attendant, le contrôle qui
+protège réellement ne dépend d'aucune arithmétique : l'actif reçu doit atteindre
+le montant demandé, les parts brûlées ne doivent pas dépasser le plafond, et les
+deux se lisent sur des soldes.
+
 ## Deux approches pour le découpage des instructions
 
 Un dépôt Jupiter Lend consomme dix-sept comptes, un retrait dix-huit.
@@ -165,6 +199,13 @@ critère de sortie de S4, qui n'a plus que cela à rendre. Passe par un module d
 types généré depuis l'IDL de l'éditeur, aucun paquet Rust n'étant publié ;
 marginfi procède de même avec un module dédié.
 
+*Au 04/08 : le câblage est écrit et vérifié contre l'IDL, les deux instructions
+`deposer_jupiter_lend` et `retirer_jupiter_lend` existent, l'autorité de
+position signe. **Le réseau n'a toujours pas été touché**, donc l'étape n'est
+pas close et S4 non plus. Il manque le chemin d'exploitation : dérivation des
+comptes de la venue hors chaîne, création préalable du compte de réclamation,
+approvisionnement des comptes de jeton de la position.*
+
 **Étape 2 - l'adaptateur, ses plafonds et son chemin d'urgence.** Un adaptateur
 par venue sous `src/venues/`, plafond par protocole, retrait d'urgence. La
 valorisation d'une position lit `token_exchange_price` après rafraîchissement.
@@ -220,11 +261,14 @@ et le retrait **dix-huit**, ce que la conception annonçait sans l'avoir lu.
 | 17 | `system_program` | `associated_token_program` |
 | 18 | | `system_program` |
 
-**Les deux ordres ne se déduisent pas l'un de l'autre.** Positions 4 et 6
-s'échangent entre les deux instructions, et le retrait insère un compte
-supplémentaire au milieu. Réutiliser l'ordre du dépôt pour le retrait produirait
-un compte au mauvais rang, c'est-à-dire l'échec le plus opaque de Solana. Chaque
-adaptateur déclarera donc ses comptes séparément, sans facteur commun.
+**Les deux ordres ne se déduisent pas l'un de l'autre.** Corrigé le 04/08 : les
+rangs 4 à 6 **tournent d'un cran**, ils ne s'échangent pas deux à deux comme le
+disait la première rédaction. `mint` descend du rang 4 au rang 6,
+`lending_admin` remonte du 5 au 4, `lending` remonte du 6 au 5. Et le retrait
+insère `claim_account` au rang 12, décalant tout ce qui suit. Réutiliser l'ordre
+du dépôt pour le retrait produirait un compte au mauvais rang, c'est-à-dire
+l'échec le plus opaque de Solana. Chaque adaptateur déclare donc ses comptes
+séparément, sans facteur commun.
 
 **Le compte de réclamation n'existe que côté retrait.** C'est l'adresse dérivée
 que le guide de référence décrit comme une mise en place unique, à créer par une
@@ -243,6 +287,13 @@ le budget de taille, ce qui retire le seul argument qu'on aurait pu avoir contre
 Le comportement de `updateRate` sur notre marché devnet, resté cinq jours sans
 rafraîchissement : des récompenses matérialisées d'un coup peuvent surprendre, et
 il vaut mieux le constater sur une transaction isolée que dans un dépôt.
+
+*Au 04/08, ce point reste ouvert et le câblage en tient compte : l'horodatage du
+dernier rafraîchissement est **journalisé, pas exigé**. Exiger qu'il tombe sur
+l'horloge de la transaction supposerait connaître la façon dont la venue le
+pose, ce que nous n'avons pas lu ; une exigence fausse ferait échouer tous les
+dépôts. La première preuve devnet dira ce que vaut cet horodatage juste après un
+rafraîchissement, et l'étape 2 pourra alors durcir sur une mesure.*
 
 ## Vérification
 

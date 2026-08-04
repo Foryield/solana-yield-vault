@@ -6,15 +6,26 @@
 //! sait transporter. D'ou un adaptateur par venue, une venue par instruction,
 //! et la resolution des comptes hors chaine.
 //!
-//! ETAT : squelette. Seule l'arithmetique de la premiere venue est ecrite, et
-//! c'est deliberer : elle doit etre juste avant que quoi que ce soit l'appelle.
-//! Les instructions viennent avec l'etape 1 du plan, qui clot le spike S4.
+//! ETAT : etape 1 ecrite, depot et retrait Jupiter Lend cables. Les deux
+//! passent par les variantes BORNEES de l'editeur, la ou une premiere lecture
+//! de l'IDL n'avait vu que les variantes nues. Les plafonds par protocole et le
+//! chemin de retrait d'urgence arrivent a l'etape 2.
+//!
+//! CE PROGRAMME N'EST PAS ENCORE EPROUVE SUR UN RESEAU. Le critere de sortie de
+//! l'etape 1, donc du spike S4, est un depot et un retrait reussis sur devnet
+//! avec leurs signatures consignees sous `docs/evidence/`. Tant que cela
+//! n'existe pas, ce qui est ecrit ici est verifie contre l'IDL de l'editeur et
+//! rien d'autre.
 //!
 //! Plan : `docs/plans/2026-08-02-allocateur-plan.md`.
 
+pub mod error;
+pub mod instructions;
+pub mod state;
 pub mod venues;
 
 use anchor_lang::prelude::*;
+use instructions::*;
 
 // Adresse issue de la paire de cles generee le 02/08, qui reste HORS du depot
 // sous `target/deploy/`. Le programme n'est PAS ENCORE DEPLOYE : cette adresse
@@ -25,4 +36,31 @@ use anchor_lang::prelude::*;
 declare_id!("BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr");
 
 #[program]
-pub mod allocator {}
+pub mod allocator {
+    use super::*;
+
+    /// Depose `actif` unites sur Jupiter Lend depuis la position du coffre.
+    ///
+    /// Le plancher n'est PAS un argument : il est calcule sur la chaine, apres
+    /// rafraichissement des prix, par le module d'arithmetique deja mesure
+    /// contre le marche reel. Le faire venir de l'exterieur laisserait un
+    /// appelant desarmer la protection en passant zero.
+    pub fn deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64) -> Result<()> {
+        handle_deposer_jupiter_lend(ctx, actif)
+    }
+
+    /// Retire `actif` unites de Jupiter Lend en brulant au plus
+    /// `parts_maximales` jetons de recu.
+    ///
+    /// Le plafond, LUI, est un argument, et l'asymetrie avec le depot est
+    /// argumentee dans l'en-tete du gestionnaire : la conversion inverse n'a
+    /// jamais ete mesuree, et une borne deduite plutot que mesuree ferait
+    /// echouer tous les retraits.
+    pub fn retirer_jupiter_lend(
+        ctx: Context<RetirerJupiterLend>,
+        actif: u64,
+        parts_maximales: u64,
+    ) -> Result<()> {
+        handle_retirer_jupiter_lend(ctx, actif, parts_maximales)
+    }
+}
