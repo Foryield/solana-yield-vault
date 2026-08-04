@@ -6,6 +6,8 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.8 | 2026-08-04 | **Étape 2 LIVRÉE et éprouvée sur devnet.** Autorité, plafond sur la valorisation, suspension et rachat intégral : les deux refus provoqués exprès |
+| 1.7 | 2026-08-04 | Conception de l'étape 2 arrêtée : configuration propre à l'allocateur, plafond sur la valorisation, suspension et retrait intégral libellé en parts. L'étape 1 avait laissé l'opérateur non contraint, c'est le premier point traité |
 | 1.6 | 2026-08-04 | **Étape 1 CLOSE, S4 clos.** Dépôt et retrait signés sur devnet. Trois mesures rapportées : l'horodatage tombe sur l'horloge, la venue applique la formule simplifiée et non la conversion en deux temps, le signataire d'une CPI doit être déclaré en écriture |
 | 1.5 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Les trois programmes de la venue lus sur la chaîne, les graines confirmées, le compte de réclamation existe déjà : le préalable tombe |
 | 1.4 | 2026-08-04 | Étape 1 câblée. L'éditeur expose des instructions bornées que la lecture du 02/08 avait manquées : le plancher est désormais appliqué des deux côtés. Rotation des rangs 4 à 6 corrigée |
@@ -234,6 +236,13 @@ les variantes bornées qui s'exécutent, `DepositWithMinAmountOut` et
 par venue sous `src/venues/`, plafond par protocole, retrait d'urgence. La
 valorisation d'une position lit `token_exchange_price` après rafraîchissement.
 
+***LIVRÉE le 04/08.*** *Configuration et administrateur, position portant son
+plafond et sa suspension, rachat intégral d'urgence. Éprouvée sur devnet, les
+deux refus provoqués exprès plutôt que supposés : `PlafondDepasse` sur un dépôt
+qui aurait franchi le plafond, `PositionSuspendue` sur un dépôt pendant
+suspension, et un retrait accepté pendant cette même suspension. Conception
+ci-dessous, preuves dans [`allocator.md`](../evidence/allocator.md).*
+
 **Étape 3 - le schéma d'événements.** Spécification versionnée autonome, quatre
 familles : dépôt, rachat, accroissement de frais, réallocation. Émission par
 auto-invocation et non par journal, décision déjà prise et argumentée dans la
@@ -242,6 +251,86 @@ pas reposer là-dessus.
 
 **Étape 4 - la réallocation entre venues.** C'est là que la contrainte de taille
 mord : une trentaine de comptes, donc table de recherche d'adresses obligatoire.
+
+## Conception de l'étape 2, arrêtée le 04/08
+
+### Ce que l'étape 1 a laissé ouvert, et qui passe devant les plafonds
+
+**L'allocateur n'a aucune autorisation.** `operateur` est un signataire sans
+contrainte, et rien ne le vérifie : n'importe qui peut déclencher un dépôt ou un
+retrait sur une position dotée. Il n'existe **pas de chemin de vol**, les comptes
+de jeton étant contraints à l'autorité de position et un autre coffre ou un
+autre marché dérivant une position différente, donc vide. Mais un tiers décide
+quand nos fonds bougent, et peut sortir toute la position de la venue à volonté.
+
+C'est donc le premier point de cette étape, avant les plafonds : un plafond que
+n'importe qui peut contourner en appelant l'instruction ne borne rien.
+
+### Trois approches pour l'autorité, l'indépendance tranche
+
+**(A) Une configuration propre à l'allocateur.** Un compte initialisé une fois,
+portant un administrateur, qui seul ouvre les positions et agit dessus. Même
+forme que la configuration du hook.
+
+**(B) L'administrateur du coffre servi.** L'allocateur lit le compte de coffre
+et exige que son administrateur signe. Une seule source de vérité sur qui
+gouverne un actif.
+
+**(C) Une autorité par position**, fixée à son ouverture.
+
+**(A) est retenue.** (B) a l'argument le plus séduisant, la source unique, mais
+elle recrée exactement le couplage que la conception avait défait en séparant
+les deux programmes : l'allocateur dépendrait de la disposition d'un compte
+qu'il ne possède pas, et un changement du coffre le casserait en silence. (C)
+ne ferme pas la question, elle la déplace : il faut alors décider qui a le droit
+d'ouvrir une position, faute de quoi le premier venu s'attribue l'autorité.
+
+Le prix de (A) est réel et assumé : « qui gouverne cet actif » existe à deux
+endroits, et rien n'oblige le coffre et l'allocateur à concorder. C'est une
+divergence possible, à surveiller en exploitation plutôt qu'à nier.
+
+### Deux approches pour le plafond, la valorisation tranche
+
+**(A) Le cumul déposé net**, suivi dans l'état de la position. Monotone,
+lisible, indépendant de tout prix.
+
+**(B) La valorisation de la position**, solde de jetons de reçu multiplié par le
+prix rafraîchi.
+
+**(B) est retenue.** (A) ne borne pas ce qu'on veut borner : une position peut
+croître très au-delà du cumul déposé par les seuls intérêts, sans que le plafond
+s'en aperçoive. (B) borne l'exposition réelle, et son coût est nul puisque le
+prix est déjà lu à chaque dépôt.
+
+Effet à connaître plutôt qu'à découvrir : les intérêts peuvent porter la
+position **au-dessus** du plafond sans aucun geste de notre part. Cela bloque
+alors les nouveaux dépôts et ne force rien à sortir. C'est le comportement
+voulu : un plafond dit ce qu'on accepte d'exposer de plus, il n'ordonne pas de
+liquider.
+
+Le contrôle se fait **après** l'invocation croisée, sur le solde réellement
+constaté, et non avant sur une prévision. La transaction étant atomique, un
+dépassement annule tout. Vérifier après coûte une soustraction et supprime
+l'écart entre ce qu'on a prévu et ce qui s'est passé.
+
+### Deux gestes pour l'urgence plutôt qu'un
+
+Une **suspension** qui bloque les nouveaux dépôts sans rien déplacer, et un
+**retrait intégral** qui sort tout de la venue vers le compte de la position.
+Séparer les deux permet d'arrêter l'hémorragie sans décider tout de suite de
+sortir. Même posture que le coupe-circuit du coffre, qui suspend sans déplacer.
+
+**Le retrait intégral est libellé en PARTS, pas en actif**, et c'est ce qui le
+rend possible. L'éditeur expose `redeemWithMinAmountOut(shares, minAmountOut)`,
+dont la liste de comptes est **identique à celle du retrait**, drapeaux compris.
+Sortir l'intégralité se dit donc « brûler tout mon solde de parts », sans avoir
+à connaître la valeur exacte, là où un retrait libellé en actif laisserait un
+reliquat ou échouerait sur un arrondi.
+
+Le montant minimal reste **fourni par l'appelant**, pour la même raison que le
+plafond de parts du retrait ordinaire : la conversion inverse n'est toujours pas
+mesurée. Un chemin d'urgence dont la borne serait inventée échouerait le jour où
+il sert.
 
 ## Les trois spikes restants, rattachés pour ne pas être oubliés
 

@@ -39,6 +39,26 @@ declare_id!("BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr");
 pub mod allocator {
     use super::*;
 
+    /// Fige l'administrateur de l'allocateur. Appelable une seule fois.
+    pub fn initialiser(ctx: Context<Initialiser>) -> Result<()> {
+        handle_initialiser(ctx)
+    }
+
+    /// Ouvre une position sur un couple coffre et marche, avec son plafond.
+    pub fn ouvrir_position(ctx: Context<OuvrirPosition>, plafond: u64) -> Result<()> {
+        handle_ouvrir_position(ctx, plafond)
+    }
+
+    /// Regle le plafond de protocole, qui borne la VALORISATION de la position.
+    pub fn regler_plafond(ctx: Context<AdministrerPosition>, plafond: u64) -> Result<()> {
+        handle_regler_plafond(ctx, plafond)
+    }
+
+    /// Suspend ou reprend la position. Ne bloque que les depots.
+    pub fn suspendre(ctx: Context<AdministrerPosition>, suspendue: bool) -> Result<()> {
+        handle_suspendre(ctx, suspendue)
+    }
+
     /// Depose `actif` unites sur Jupiter Lend depuis la position du coffre.
     ///
     /// Le plancher n'est PAS un argument : il est calcule sur la chaine, apres
@@ -57,10 +77,20 @@ pub mod allocator {
     /// jamais ete mesuree, et une borne deduite plutot que mesuree ferait
     /// echouer tous les retraits.
     pub fn retirer_jupiter_lend(
-        ctx: Context<RetirerJupiterLend>,
+        ctx: Context<SortirDeJupiterLend>,
         actif: u64,
         parts_maximales: u64,
     ) -> Result<()> {
         handle_retirer_jupiter_lend(ctx, actif, parts_maximales)
+    }
+
+    /// CHEMIN D'URGENCE. Brule l'integralite du solde de jetons de recu contre
+    /// au moins `actif_minimal` unites.
+    ///
+    /// Libelle en parts et non en actif, ce qui permet de sortir sans avoir a
+    /// valoriser d'abord. Reste ouvert quand la position est suspendue : une
+    /// suspension protege des depots, elle n'enferme pas les fonds.
+    pub fn racheter_tout(ctx: Context<SortirDeJupiterLend>, actif_minimal: u64) -> Result<()> {
+        handle_racheter_tout(ctx, actif_minimal)
     }
 }

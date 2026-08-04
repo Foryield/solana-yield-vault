@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 3.0 | 2026-08-04 | **Étape 2 de l'allocateur livrée** : autorité, plafond sur la valorisation, suspension, rachat intégral d'urgence. Éprouvée sur devnet, refus compris |
 | 2.9 | 2026-08-04 | **S4 CLOS.** Dépôt et retrait Jupiter Lend signés sur devnet depuis l'allocateur. L'étape 1 est close, il reste les étapes 2 à 4 |
 | 2.8 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Il ne manque plus qu'un déploiement et deux transactions pour clore S4 |
 | 2.7 | 2026-08-04 | Câblage de l'étape 1 écrit : dépôt et retrait Jupiter Lend bornés des deux côtés. Il ne manque que le chemin d'exploitation et la preuve devnet |
@@ -134,10 +135,20 @@ la formule simplifiée, non la conversion en deux temps** : le plan supposait
 l'inverse, et l'égalité stricte qu'il avait écartée aurait refusé ce dépôt. La
 décision était bonne, la prémisse était fausse.
 
-**Ce qui reste du chantier** : les étapes 2 à 4, adaptateur et plafonds, schéma
-d'événements, réallocation. Plus deux dettes nommées à solder sur une mesure :
-le plafond du retrait, encore fourni par l'appelant, et l'horodatage, encore
-journalisé plutôt qu'exigé.
+**L'étape 2 est livrée le 04/08 et éprouvée sur devnet.** L'allocateur porte une
+configuration avec son administrateur, chaque position porte son plafond et sa
+suspension, et un rachat intégral d'urgence sort tout sans exiger de valoriser
+d'abord. Les deux refus ont été provoqués exprès plutôt que supposés.
+
+Cette étape a d'abord fermé un trou que l'étape 1 avait laissé : `operateur`
+était un signataire sans contrainte, donc n'importe qui pouvait déclencher un
+mouvement. Aucun vol n'était possible, les comptes de jeton étant liés à la
+position, mais un tiers décidait quand les fonds bougeaient.
+
+**Ce qui reste du chantier** : les étapes 3 et 4, schéma d'événements et
+réallocation. Plus deux dettes nommées à solder sur une mesure : la borne des
+sorties, encore fournie par l'appelant, et l'horodatage, encore journalisé
+plutôt qu'exigé alors qu'il est désormais mesuré.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un

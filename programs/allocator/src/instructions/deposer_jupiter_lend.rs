@@ -8,66 +8,69 @@
 //! garde etait sans defaut ; la seconde ne suppose rien de leur code et ne
 //! reclame aucune arithmetique supplementaire, puisqu'elle ne fait que
 //! soustraire deux soldes que nous lisons nous-memes.
+//!
+//! TROIS GARDES S'AJOUTENT A L'ETAPE 2, et elles ne sont pas de meme nature.
+//! L'administrateur est exige, sans quoi n'importe qui deciderait quand les
+//! fonds bougent. La suspension bloque avant tout mouvement. Le plafond, lui,
+//! est verifie APRES l'invocation croisee, sur le solde reellement constate :
+//! la transaction etant atomique, un depassement annule tout, et verifier apres
+//! supprime l'ecart entre ce qu'on avait prevu et ce qui s'est passe.
 
 use crate::{
     error::AllocatorError,
-    state::POSITION_SEED,
+    state::*,
     venues::jupiter_lend::{cpi, lending, math},
 };
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::{invoke, invoke_signed};
 use anchor_spl::token_interface::TokenAccount;
 
-/// Vingt comptes, dont dix-sept sont ceux de la venue.
-///
-/// L'ORDRE DE CETTE STRUCTURE N'EST PAS CELUI DE LA VENUE et n'a pas a l'etre :
-/// c'est `cpi::instruction_depot` qui range les comptes au rang de l'IDL. Ici
-/// l'ordre suit la lecture, du plus proche de nous au plus lointain.
 #[derive(Accounts)]
 pub struct DeposerJupiterLend<'info> {
-    /// Declencheur. L'etape 1 ne lui demande que de signer la transaction ;
-    /// l'etape 2 attachera une autorite verifiee a la position.
-    pub operateur: Signer<'info>,
+    /// SEUL HABILITE. L'etape 1 acceptait n'importe quel signataire, ce qui ne
+    /// permettait aucun vol mais laissait un tiers decider quand nos fonds
+    /// bougeaient.
+    pub admin: Signer<'info>,
 
-    /// Coffre servi. Employe UNIQUEMENT comme graine de la position : aucune
-    /// donnee n'en est lue, ce qui evite de lier l'allocateur a la disposition
-    /// du compte de coffre.
-    /// CHECK: graine seulement, jamais deserialise.
-    pub coffre: UncheckedAccount<'info>,
+    #[account(seeds = [CONFIGURATION_SEED], bump = configuration.bump, has_one = admin)]
+    pub configuration: Account<'info, Configuration>,
+
+    /// Position, a l'adresse meme qui signe les invocations croisees.
+    ///
+    /// Les trois `has_one` remplacent autant de verifications ecrites a la main
+    /// dans le corps du gestionnaire a l'etape 1. L'actif et le jeton de recu
+    /// ont ete lus dans le marche a l'ouverture et figes : plus rien ne peut
+    /// presenter un mint qui n'est pas celui de cette position.
+    #[account(
+        mut,
+        seeds = [POSITION_SEED, position.coffre.as_ref(), position.marche.as_ref()],
+        bump = position.bump,
+        has_one = marche,
+        has_one = actif,
+        has_one = jeton_de_recu,
+    )]
+    pub position: Account<'info, Position>,
 
     /// Compte de marche de la venue, decode par `lire_marche` APRES le
     /// rafraichissement des prix.
-    /// CHECK: taille et discriminateur verifies par `lire_marche`.
+    /// CHECK: taille et discriminateur verifies par `lire_marche` ; identite
+    /// verifiee par le `has_one` de la position.
     #[account(mut)]
     pub marche: UncheckedAccount<'info>,
-
-    /// Autorite de signature de la position, une par couple coffre et marche.
-    /// Sans donnees a l'etape 1 : elle signe et detient, elle ne raconte rien.
-    ///
-    /// DECLAREE MUTABLE, ET C'EST OBLIGATOIRE plutot que prudent. La venue
-    /// attend son signataire en ECRITURE, son IDL le declarant `writable`. Une
-    /// invocation croisee ne peut jamais accorder plus de droits qu'elle n'en a
-    /// recus : sans `mut` ici, le programme demande une elevation et l'execution
-    /// s'arrete sur « writable privilege escalated », qui nomme le compte mais
-    /// pas la cause. Constate sur devnet le 04/08, pas deduit.
-    ///
-    /// CHECK: aucune donnee lue ; l'adresse est entierement contrainte par ses
-    /// graines, donc un compte etranger ne peut pas se presenter ici.
-    #[account(mut, seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
-    pub position: UncheckedAccount<'info>,
 
     /// Actif detenu par la position, source du depot.
     #[account(mut, token::authority = position, token::mint = actif)]
     pub actif_de_la_position: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// Jetons de recu detenus par la position, destination du depot. C'est le
-    /// solde de CE compte qui mesure ce que la venue a reellement emis.
+    /// solde de CE compte qui mesure ce que la venue a reellement emis, et sur
+    /// lui que le plafond est verifie.
     #[account(mut, token::authority = position, token::mint = jeton_de_recu)]
     pub recu_de_la_position: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// CHECK: mint de l'actif ; confronte a celui que le marche declare.
+    /// CHECK: identite verifiee par le `has_one` de la position.
     pub actif: UncheckedAccount<'info>,
-    /// CHECK: mint du jeton de recu ; confronte a celui que le marche declare.
+    /// CHECK: identite verifiee par le `has_one` de la position.
     #[account(mut)]
     pub jeton_de_recu: UncheckedAccount<'info>,
     /// CHECK: compte d'administration de la venue, transmis tel quel.
@@ -103,6 +106,11 @@ pub struct DeposerJupiterLend<'info> {
 }
 
 pub fn handle_deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64) -> Result<()> {
+    require!(
+        !ctx.accounts.position.suspendue,
+        AllocatorError::PositionSuspendue
+    );
+
     let venue = ctx.accounts.programme_de_pret.key();
 
     // RAFRAICHISSEMENT D'ABORD, ET DANS LA MEME TRANSACTION. Les prix du marche
@@ -140,23 +148,10 @@ pub fn handle_deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64)
         lending::lire_marche(&donnees).map_err(|e| error!(AllocatorError::from(e)))?
     };
 
-    // LE MARCHE DOIT PARLER DE L'ACTIF QU'ON LUI PRESENTE. Sans ce controle,
-    // un marche d'un autre actif accepterait les comptes et valoriserait le
-    // depot avec des prix qui ne sont pas les siens.
-    require!(
-        marche.actif == ctx.accounts.actif.key().to_bytes(),
-        AllocatorError::MarcheActifEtranger
-    );
-    require!(
-        marche.jeton_de_recu == ctx.accounts.jeton_de_recu.key().to_bytes(),
-        AllocatorError::MarcheJetonEtranger
-    );
-
-    // L'HORODATAGE EST JOURNALISE, PAS EXIGE, et c'est delibere. Exiger qu'il
-    // tombe sur l'horloge de la transaction supposerait connaitre la facon dont
-    // la venue le pose, ce que nous n'avons pas lu : une exigence fausse
-    // ferait echouer tous les depots. La preuve devnet dira ce qu'il vaut
-    // reellement apres un rafraichissement, et l'etape 2 pourra alors durcir.
+    // L'HORODATAGE EST JOURNALISE, PAS ENCORE EXIGE. Mesure le 04/08 sur
+    // devnet : il tombe exactement sur l'horloge de la transaction. Le durcir
+    // est desormais possible et reste a faire, sur un echantillon plutot que
+    // sur une transaction.
     msg!(
         "marche rafraichi a {}, horloge {}",
         marche.dernier_rafraichissement,
@@ -199,13 +194,13 @@ pub fn handle_deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64)
         attendues,
     );
 
-    let coffre = ctx.accounts.coffre.key();
-    let marche_cle = ctx.accounts.marche.key();
+    let coffre = ctx.accounts.position.coffre;
+    let marche_cle = ctx.accounts.position.marche;
     let graines: &[&[u8]] = &[
         POSITION_SEED,
         coffre.as_ref(),
         marche_cle.as_ref(),
-        &[ctx.bumps.position],
+        &[ctx.accounts.position.bump],
     ];
 
     invoke_signed(
@@ -246,21 +241,35 @@ pub fn handle_deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64)
     // parce qu'une venue qui prendrait moins ne nous lese pas.
     require!(preleve <= actif, AllocatorError::ActifPreleveExcessif);
 
-    let recues = ctx
-        .accounts
-        .recu_de_la_position
-        .amount
+    let recu_apres = ctx.accounts.recu_de_la_position.amount;
+    let recues = recu_apres
         .checked_sub(recu_avant)
         .ok_or(AllocatorError::SoldeIncoherent)?;
     let ecart =
         math::verifier_plancher(recues, attendues).map_err(|e| error!(AllocatorError::from(e)))?;
 
-    // L'ECART FAVORABLE EST DIT, PAS TU. Il ne justifie pas d'annuler, mais il
-    // signale que l'arrondi de la venue a bouge, ce qui est une information
-    // dont l'etape 3 fera un evenement.
+    // L'ECART FAVORABLE EST DIT, PAS TU. Mesure le 04/08 : il vaut une part,
+    // parce que la venue applique la formule simplifiee la ou notre conversion
+    // en deux temps minore. C'est precisement ce qu'un plancher tolere et
+    // qu'une egalite stricte aurait refuse.
     if ecart > 0 {
         msg!("ecart favorable de {} parts au-dela du plancher", ecart);
     }
+
+    // LE PLAFOND, VERIFIE APRES ET SUR LE SOLDE REEL. Il porte sur la
+    // VALORISATION et non sur le cumul depose : une position croit par les
+    // seuls interets, et c'est cette croissance qu'un plafond doit voir.
+    let valeur = math::valeur_en_actif(recu_apres, marche.prix_jeton)
+        .map_err(|e| error!(AllocatorError::from(e)))?;
+    require!(
+        valeur <= ctx.accounts.position.plafond,
+        AllocatorError::PlafondDepasse
+    );
+    msg!(
+        "position valorisee a {} pour un plafond de {}",
+        valeur,
+        ctx.accounts.position.plafond
+    );
 
     Ok(())
 }

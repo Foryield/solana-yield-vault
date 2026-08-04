@@ -8,7 +8,7 @@ import {
   compteDeReclamationAddress,
   marcheAddress,
 } from "../src/venues/jupiterLend.js";
-import { positionAddress } from "../src/addresses.js";
+import { configurationAddress, positionAddress } from "../src/addresses.js";
 
 /**
  * Ces tests confrontent DEUX ORIGINES qui n'ont rien en commun.
@@ -106,6 +106,23 @@ describe("comptes de la venue", () => {
     expect(
       compteDeReclamationAddress(PROGRAMMES_JUPITER_LEND_DEVNET, actif).toBase58(),
     ).toBe(c.compteDeReclamation.toBase58());
+  });
+});
+
+describe("configuration de l'allocateur", () => {
+  /**
+   * Un seul compte pour tout le programme, donc une derivation sans argument
+   * autre que l'identifiant. C'est lui qui porte l'administrateur : s'en
+   * tromper ferait echouer toute commande d'administration sur une contrainte
+   * de graines, sans dire laquelle.
+   */
+  it("derive la meme adresse que le programme", () => {
+    const c = configurationAddress(new PublicKey(allocatorFixture.programId));
+    expect(c.toBase58()).toBe(allocatorFixture.configuration);
+  });
+
+  it("n'est pas l'adresse d'une position", () => {
+    expect(allocatorFixture.configuration).not.toBe(allocatorFixture.position);
   });
 });
 

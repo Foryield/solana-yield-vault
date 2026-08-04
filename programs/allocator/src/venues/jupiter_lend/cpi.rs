@@ -31,6 +31,8 @@ pub const DISCRIMINATEUR_RAFRAICHIR: [u8; 8] = [24, 225, 53, 189, 72, 212, 225, 
 pub const DISCRIMINATEUR_DEPOT: [u8; 8] = [116, 144, 16, 97, 118, 109, 40, 119];
 /// `withdrawWithMaxSharesBurn`, et non `withdraw` : voir l'en-tete du module.
 pub const DISCRIMINATEUR_RETRAIT: [u8; 8] = [47, 197, 183, 171, 239, 18, 245, 171];
+/// `redeemWithMinAmountOut`, et non `redeem` : voir l'en-tete du module.
+pub const DISCRIMINATEUR_RACHAT: [u8; 8] = [235, 189, 237, 56, 166, 180, 184, 149];
 
 /// Les cinq comptes du rafraichissement de taux.
 ///
@@ -210,6 +212,32 @@ pub fn instruction_retrait(
             AccountMeta::new_readonly(c.programme_systeme, false),
         ],
         data,
+    }
+}
+
+/// Rachete `parts` jetons de recu contre AU MOINS `actif_minimal` unites.
+///
+/// LIBELLE EN PARTS LA OU LE RETRAIT EST LIBELLE EN ACTIF, et c'est ce qui rend
+/// le chemin d'urgence possible. « Sortir tout » se dit ici « bruler tout mon
+/// solde », sans avoir a connaitre la valeur exacte de la position ; demande en
+/// actif, la meme sortie laisserait un reliquat ou echouerait sur un arrondi.
+///
+/// SES COMPTES SONT EXACTEMENT CEUX DU RETRAIT, verifie dans l'IDL le 04/08,
+/// drapeaux compris. C'est la seule liste partagee de ce module, et elle l'est
+/// parce que l'IDL les declare identiques, pas parce qu'elles se ressemblent.
+pub fn instruction_rachat(
+    programme: Pubkey,
+    c: &ComptesRetrait,
+    parts: u64,
+    actif_minimal: u64,
+) -> Instruction {
+    let mut data = DISCRIMINATEUR_RACHAT.to_vec();
+    data.extend_from_slice(&parts.to_le_bytes());
+    data.extend_from_slice(&actif_minimal.to_le_bytes());
+
+    Instruction {
+        data,
+        ..instruction_retrait(programme, c, 0, 0)
     }
 }
 
@@ -454,6 +482,30 @@ mod tests {
         assert_eq!(retrait.accounts[5].pubkey, actif);
     }
 
+    /// Le rachat emprunte la liste du retrait, donc ce test verifie qu'il
+    /// l'emprunte VRAIMENT : memes rangs, memes droits, meme signataire. Si
+    /// l'un des deux derivait, le partage cesserait d'etre legitime.
+    #[test]
+    fn le_rachat_porte_exactement_les_comptes_du_retrait() {
+        let c = comptes_retrait();
+        let rachat = instruction_rachat(cle(99), &c, 1, 1);
+        let retrait = instruction_retrait(cle(99), &c, 1, 1);
+        assert_eq!(rachat.accounts, retrait.accounts);
+        assert_eq!(rachat.program_id, retrait.program_id);
+    }
+
+    /// Mais SA CHARGE UTILE DIFFERE, et c'est tout l'objet : un discriminateur
+    /// distinct, et deux arguments qui ne veulent pas dire la meme chose.
+    #[test]
+    fn le_rachat_encode_ses_parts_puis_son_plancher_en_petit_boutiste() {
+        let ix = instruction_rachat(cle(99), &comptes_retrait(), 989_806, 999_998);
+        assert_eq!(ix.data[0..8], DISCRIMINATEUR_RACHAT);
+        assert_ne!(ix.data[0..8], DISCRIMINATEUR_RETRAIT);
+        assert_eq!(ix.data.len(), 24);
+        assert_eq!(&ix.data[8..16], &989_806u64.to_le_bytes());
+        assert_eq!(&ix.data[16..24], &999_998u64.to_le_bytes());
+    }
+
     /// LES VARIANTES NUES SONT UNE FAUTE ICI, pas une alternative. Leurs
     /// discriminateurs sont figes comme valeurs INTERDITES : retomber sur
     /// `deposit` ou `withdraw` retirerait la borne de la charge utile sans
@@ -462,7 +514,9 @@ mod tests {
     fn aucune_instruction_ne_retombe_sur_la_variante_non_bornee() {
         const DEPOT_NU: [u8; 8] = [242, 35, 198, 137, 82, 225, 242, 182];
         const RETRAIT_NU: [u8; 8] = [183, 18, 70, 156, 148, 109, 161, 34];
+        const RACHAT_NU: [u8; 8] = [184, 12, 86, 149, 70, 196, 97, 225];
         assert_ne!(DISCRIMINATEUR_DEPOT, DEPOT_NU);
         assert_ne!(DISCRIMINATEUR_RETRAIT, RETRAIT_NU);
+        assert_ne!(DISCRIMINATEUR_RACHAT, RACHAT_NU);
     }
 }

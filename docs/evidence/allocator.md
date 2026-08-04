@@ -115,6 +115,47 @@ bien les variantes bornées qui tournent, pas les nues. Le dépôt a rendu
 **Coût.** 1,23 SOL de déploiement, 0,000005 SOL par transaction. Solde
 d'exploitation 23,242 → 21,912 SOL, extension du compte de programme comprise.
 
+## 2026-08-04 - L'adaptateur, son plafond et son chemin d'urgence, éprouvés
+
+**Ce que ça prouve** : les gardes de l'étape 2 mordent réellement, et aucune
+n'est un commentaire. Chacune a été mise en échec volontairement.
+
+**Cluster** : Solana **devnet**.
+
+| Élément | Adresse |
+|---|---|
+| Configuration de l'allocateur | `Dd4Fn5nzFXFp35h4t5LmPAb1CyXaEPeMgXWs6Tkq6S8u` |
+| Administrateur | `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP` |
+
+| Geste | Résultat | Signature |
+|---|---|---|
+| Configuration | administrateur figé | [`4g2k6sCA…3KVH`](https://explorer.solana.com/tx/4g2k6sCA5FxHEbJpG3zu9iLxuWTWmKnGq113R5C5Fr2XhoDKNd331K9V7SuB9gZCdHs5UD9H3S5PPLMFfJZh3KVH?cluster=devnet) |
+| Ouverture, plafond 3 USDC | actif et jeton de reçu **lus dans le marché** | [`q29rc4ug…fYxU`](https://explorer.solana.com/tx/q29rc4ugzzcw5Gon3dos8DqnErT76TPz7GAY7VxVqPU1X1co6WXi3wcyUH7Lb5TMk4VXWC3r8abR9Kr5wmtfYxU?cluster=devnet) |
+| Dépôt de 1 USDC | accepté, sous le plafond | [`29eZKcVP…3W8n`](https://explorer.solana.com/tx/29eZKcVPBGj9GE8p2Vk97aBpuYjmaQyCajqhiSKFoiVisewtFeFaK1D8QPCwSWj94ZZtESgoH1VutsoHR7wB3W8n?cluster=devnet) |
+| Retrait pendant suspension | **accepté**, comme voulu | [`5v3LJQtU…yZJ2`](https://explorer.solana.com/tx/5v3LJQtUVAZ71PJ7zPQGvj28wNL8RqFofGiBseD5NXCLtJnj4aUFGao9pR6uXQARUFXndWUhiNBEwmzt4egEyZJ2?cluster=devnet) |
+| **Rachat intégral d'urgence** | position vidée | [`2cF1Ztsc…s6qe`](https://explorer.solana.com/tx/2cF1ZtscsrmCU3md95i41yyVbZ2BkS6cpgTdWkQTtzKZsbXQBFvhkAR3d5vU6n3b2ienXag88dz5nnShgTjMs6qe?cluster=devnet) |
+
+**Les deux refus, provoqués exprès.** Un dépôt de 2 USDC qui aurait porté la
+valorisation à environ 4 USDC pour un plafond de 3 a été rejeté sur
+`PlafondDepasse` (6013), et les soldes sont restés inchangés : la transaction
+étant atomique, le refus annule l'invocation croisée qui l'avait précédé. Un
+dépôt pendant suspension a été rejeté sur `PositionSuspendue` (6010).
+
+**Le rachat intégral se lit dans ses journaux** : `RedeemWithMinAmountOut` puis
+`rachat integral de 1880632 parts contre 1899998 unites`. La valorisation
+calculée hors chaîne avant l'appel annonçait 1 899 998, à l'unité près. Le solde
+de jetons de reçu est tombé à zéro, ce que le programme vérifie lui-même.
+
+**Un risque qui ne s'est pas matérialisé, et qu'il fallait lever.** La position
+porte désormais des données tout en restant le signataire des invocations
+croisées. Rien ne garantissait que la venue accepte comme signataire en écriture
+une adresse dérivée appartenant à un autre programme. Elle l'accepte.
+
+**Coût du parcours.** Sur 5 USDC dotés au départ, la position en retrouve
+4 999 998 après un dépôt de 2, un dépôt de 1, un retrait de 1, un retrait de 0,1
+et un rachat intégral. Deux unités minimales perdues en arrondis sur cinq
+mouvements, soit un dix-millionième.
+
 ## 2026-08-04 - Trois mesures que seul le réseau pouvait rendre
 
 **L'horodatage de rafraîchissement tombe sur l'horloge de la transaction.**

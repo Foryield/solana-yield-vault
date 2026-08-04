@@ -1,22 +1,33 @@
-//! Retrait de Jupiter Lend : les jetons de recu brulent, l'actif revient.
+//! Les deux sorties de Jupiter Lend, ordinaire et d'urgence.
 //!
-//! LE PLAFOND VIENT DE L'APPELANT, la ou le plancher du depot est calcule sur
-//! la chaine, et l'asymetrie est assumee. La conversion du depot a ete MESUREE
-//! contre les prix reels du marche devnet le 02/08 ; celle du retrait ne l'a
-//! pas ete, et rien de ce que l'editeur publie ne la donne. La deduire ici
-//! reviendrait a inventer une borne, exactement le geste que le plan reproche
-//! a la formule simplifiee : trop serree, elle ferait echouer tous les
-//! retraits. L'appelant la calcule donc a partir de ce qu'il observe, et
-//! l'etape 2 la reprendra sur la chaine le jour ou elle aura ete mesuree.
+//! ELLES PARTAGENT LEUR STRUCTURE DE COMPTES, et c'est legitime ici alors que
+//! le depot et le retrait ne partagent rien : l'IDL de l'editeur declare pour
+//! `withdrawWithMaxSharesBurn` et `redeemWithMinAmountOut` la MEME liste, dans
+//! le meme ordre, avec les memes droits. Un test le verifie plutot que de le
+//! supposer, et si les deux listes divergeaient un jour, il tomberait.
 //!
-//! CE CHOIX NE DESARME PAS LA CEINTURE. Le controle qui protege reellement ne
-//! depend d'aucune arithmetique : l'actif recu doit atteindre le montant
-//! demande, et les parts brulees ne doivent pas depasser le plafond. Les deux
-//! se lisent sur des soldes, avant et apres.
+//! CE QUI LES DISTINGUE EST L'UNITE. Le retrait ordinaire se demande en actif
+//! et se paie en parts, donc c'est le prix qui se plafonne. Le rachat se
+//! demande en parts et rend de l'actif, donc c'est le produit qui se minore.
+//! C'est cette seconde forme qui rend le chemin d'urgence possible : « sortir
+//! tout » se dit « bruler tout mon solde », sans avoir a connaitre la valeur
+//! exacte de la position.
+//!
+//! LES DEUX SORTIES RESTENT OUVERTES QUAND LA POSITION EST SUSPENDUE. Une
+//! suspension protege des nouveaux depots ; si elle fermait aussi les sorties,
+//! elle enfermerait les fonds dans la venue au moment precis ou l'on veut
+//! pouvoir en sortir.
+//!
+//! LES BORNES VIENNENT DE L'APPELANT dans les deux cas, la ou le plancher du
+//! depot est calcule sur la chaine. La conversion inverse n'a jamais ete
+//! mesuree, et rien de ce que l'editeur publie ne la donne : la deduire
+//! reviendrait a inventer une borne, et une borne trop serree fait echouer la
+//! sortie le jour ou elle sert. Le controle qui protege reellement ne depend
+//! d'aucune arithmetique : il compare des soldes avant et apres.
 
 use crate::{
     error::AllocatorError,
-    state::POSITION_SEED,
+    state::*,
     venues::jupiter_lend::{cpi, lending},
 };
 use anchor_lang::prelude::*;
@@ -26,36 +37,38 @@ use anchor_spl::token_interface::TokenAccount;
 /// Vingt et un comptes, dont dix-huit sont ceux de la venue. Le compte
 /// supplementaire par rapport au depot est celui de reclamation.
 #[derive(Accounts)]
-pub struct RetirerJupiterLend<'info> {
-    pub operateur: Signer<'info>,
+pub struct SortirDeJupiterLend<'info> {
+    pub admin: Signer<'info>,
 
-    /// CHECK: graine seulement, jamais deserialise.
-    pub coffre: UncheckedAccount<'info>,
+    #[account(seeds = [CONFIGURATION_SEED], bump = configuration.bump, has_one = admin)]
+    pub configuration: Account<'info, Configuration>,
 
-    /// CHECK: taille et discriminateur verifies par `lire_marche`.
+    #[account(
+        mut,
+        seeds = [POSITION_SEED, position.coffre.as_ref(), position.marche.as_ref()],
+        bump = position.bump,
+        has_one = marche,
+        has_one = actif,
+        has_one = jeton_de_recu,
+    )]
+    pub position: Account<'info, Position>,
+
+    /// CHECK: taille et discriminateur verifies par `lire_marche` ; identite
+    /// verifiee par le `has_one` de la position.
     #[account(mut)]
     pub marche: UncheckedAccount<'info>,
 
-    /// Mutable pour la meme raison qu'au depot : la venue attend son signataire
-    /// en ecriture, et une invocation croisee ne peut pas elever un droit
-    /// qu'elle n'a pas recu.
-    ///
-    /// CHECK: aucune donnee lue ; l'adresse est entierement contrainte par ses
-    /// graines.
-    #[account(mut, seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
-    pub position: UncheckedAccount<'info>,
-
-    /// Actif detenu par la position, destination du retrait.
+    /// Actif detenu par la position, destination de la sortie.
     #[account(mut, token::authority = position, token::mint = actif)]
     pub actif_de_la_position: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// Jetons de recu detenus par la position, source du retrait.
+    /// Jetons de recu detenus par la position, source de la sortie.
     #[account(mut, token::authority = position, token::mint = jeton_de_recu)]
     pub recu_de_la_position: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// CHECK: mint de l'actif ; confronte a celui que le marche declare.
+    /// CHECK: identite verifiee par le `has_one` de la position.
     pub actif: UncheckedAccount<'info>,
-    /// CHECK: mint du jeton de recu ; confronte a celui que le marche declare.
+    /// CHECK: identite verifiee par le `has_one` de la position.
     #[account(mut)]
     pub jeton_de_recu: UncheckedAccount<'info>,
     /// CHECK: compte d'administration de la venue, transmis tel quel.
@@ -71,9 +84,9 @@ pub struct RetirerJupiterLend<'info> {
     /// CHECK: coffre de la venue, a ne pas confondre avec le notre.
     #[account(mut)]
     pub coffre_de_la_venue: UncheckedAccount<'info>,
-    /// COMPTE DE RECLAMATION, propre au retrait. Adresse derivee du programme
-    /// de recompenses que rien ne cree automatiquement : elle doit exister
-    /// AVANT le premier retrait. C'est un prealable d'exploitation.
+    /// COMPTE DE RECLAMATION, propre aux sorties. Derive de l'administration de
+    /// la venue et non du retireur, malgre une graine qui dit « user » : il en
+    /// existe un seul par actif, et celui de l'USDC devnet existait deja.
     /// CHECK: transmis tel quel a la venue, qui le valide.
     #[account(mut)]
     pub compte_de_reclamation: UncheckedAccount<'info>,
@@ -96,113 +109,120 @@ pub struct RetirerJupiterLend<'info> {
     pub programme_systeme: UncheckedAccount<'info>,
 }
 
+impl<'info> SortirDeJupiterLend<'info> {
+    /// Rafraichit les prix et rend le marche decode.
+    ///
+    /// Les deux sorties commencent par la, et pour la meme raison que le depot :
+    /// une sortie valorisee sur des prix perimes brule le mauvais nombre de
+    /// parts.
+    fn rafraichir_et_lire(&self) -> Result<lending::Marche> {
+        let rafraichir = cpi::instruction_rafraichir(
+            self.programme_de_pret.key(),
+            &cpi::ComptesRafraichir {
+                marche: self.marche.key(),
+                actif: self.actif.key(),
+                jeton_de_recu: self.jeton_de_recu.key(),
+                reserves_de_liquidite: self.reserves_de_liquidite.key(),
+                modele_de_recompenses: self.modele_de_recompenses.key(),
+            },
+        );
+        invoke(
+            &rafraichir,
+            &[
+                self.marche.to_account_info(),
+                self.actif.to_account_info(),
+                self.jeton_de_recu.to_account_info(),
+                self.reserves_de_liquidite.to_account_info(),
+                self.modele_de_recompenses.to_account_info(),
+                self.programme_de_pret.to_account_info(),
+            ],
+        )?;
+
+        let donnees = self.marche.try_borrow_data()?;
+        lending::lire_marche(&donnees).map_err(|e| error!(AllocatorError::from(e)))
+    }
+
+    fn comptes_de_la_venue(&self) -> cpi::ComptesRetrait {
+        cpi::ComptesRetrait {
+            signataire: self.position.key(),
+            recu_du_proprietaire: self.recu_de_la_position.key(),
+            actif_du_destinataire: self.actif_de_la_position.key(),
+            administration: self.administration.key(),
+            marche: self.marche.key(),
+            actif: self.actif.key(),
+            jeton_de_recu: self.jeton_de_recu.key(),
+            reserves_de_liquidite: self.reserves_de_liquidite.key(),
+            position_de_liquidite: self.position_de_liquidite.key(),
+            modele_de_taux: self.modele_de_taux.key(),
+            coffre_de_la_venue: self.coffre_de_la_venue.key(),
+            compte_de_reclamation: self.compte_de_reclamation.key(),
+            liquidite: self.liquidite.key(),
+            programme_de_liquidite: self.programme_de_liquidite.key(),
+            modele_de_recompenses: self.modele_de_recompenses.key(),
+            programme_de_jeton: self.programme_de_jeton.key(),
+            programme_de_compte_associe: self.programme_de_compte_associe.key(),
+            programme_systeme: self.programme_systeme.key(),
+        }
+    }
+
+    fn invoquer_signe(
+        &self,
+        instruction: &anchor_lang::solana_program::instruction::Instruction,
+    ) -> Result<()> {
+        let coffre = self.position.coffre;
+        let marche = self.position.marche;
+        let graines: &[&[u8]] = &[
+            POSITION_SEED,
+            coffre.as_ref(),
+            marche.as_ref(),
+            &[self.position.bump],
+        ];
+        invoke_signed(
+            instruction,
+            &[
+                self.position.to_account_info(),
+                self.recu_de_la_position.to_account_info(),
+                self.actif_de_la_position.to_account_info(),
+                self.administration.to_account_info(),
+                self.marche.to_account_info(),
+                self.actif.to_account_info(),
+                self.jeton_de_recu.to_account_info(),
+                self.reserves_de_liquidite.to_account_info(),
+                self.position_de_liquidite.to_account_info(),
+                self.modele_de_taux.to_account_info(),
+                self.coffre_de_la_venue.to_account_info(),
+                self.compte_de_reclamation.to_account_info(),
+                self.liquidite.to_account_info(),
+                self.programme_de_liquidite.to_account_info(),
+                self.modele_de_recompenses.to_account_info(),
+                self.programme_de_jeton.to_account_info(),
+                self.programme_de_compte_associe.to_account_info(),
+                self.programme_systeme.to_account_info(),
+                self.programme_de_pret.to_account_info(),
+            ],
+            &[graines],
+        )
+        .map_err(Into::into)
+    }
+}
+
 pub fn handle_retirer_jupiter_lend(
-    ctx: Context<RetirerJupiterLend>,
+    ctx: Context<SortirDeJupiterLend>,
     actif: u64,
     parts_maximales: u64,
 ) -> Result<()> {
-    let venue = ctx.accounts.programme_de_pret.key();
-
-    // Meme contrainte de fraicheur qu'au depot, et pour la meme raison : un
-    // retrait valorise sur des prix perimes brule le mauvais nombre de parts.
-    let rafraichir = cpi::instruction_rafraichir(
-        venue,
-        &cpi::ComptesRafraichir {
-            marche: ctx.accounts.marche.key(),
-            actif: ctx.accounts.actif.key(),
-            jeton_de_recu: ctx.accounts.jeton_de_recu.key(),
-            reserves_de_liquidite: ctx.accounts.reserves_de_liquidite.key(),
-            modele_de_recompenses: ctx.accounts.modele_de_recompenses.key(),
-        },
-    );
-    invoke(
-        &rafraichir,
-        &[
-            ctx.accounts.marche.to_account_info(),
-            ctx.accounts.actif.to_account_info(),
-            ctx.accounts.jeton_de_recu.to_account_info(),
-            ctx.accounts.reserves_de_liquidite.to_account_info(),
-            ctx.accounts.modele_de_recompenses.to_account_info(),
-            ctx.accounts.programme_de_pret.to_account_info(),
-        ],
-    )?;
-
-    let marche = {
-        let donnees = ctx.accounts.marche.try_borrow_data()?;
-        lending::lire_marche(&donnees).map_err(|e| error!(AllocatorError::from(e)))?
-    };
-    require!(
-        marche.actif == ctx.accounts.actif.key().to_bytes(),
-        AllocatorError::MarcheActifEtranger
-    );
-    require!(
-        marche.jeton_de_recu == ctx.accounts.jeton_de_recu.key().to_bytes(),
-        AllocatorError::MarcheJetonEtranger
-    );
+    ctx.accounts.rafraichir_et_lire()?;
 
     let actif_avant = ctx.accounts.actif_de_la_position.amount;
     let recu_avant = ctx.accounts.recu_de_la_position.amount;
 
     let retrait = cpi::instruction_retrait(
-        venue,
-        &cpi::ComptesRetrait {
-            signataire: ctx.accounts.position.key(),
-            recu_du_proprietaire: ctx.accounts.recu_de_la_position.key(),
-            actif_du_destinataire: ctx.accounts.actif_de_la_position.key(),
-            administration: ctx.accounts.administration.key(),
-            marche: ctx.accounts.marche.key(),
-            actif: ctx.accounts.actif.key(),
-            jeton_de_recu: ctx.accounts.jeton_de_recu.key(),
-            reserves_de_liquidite: ctx.accounts.reserves_de_liquidite.key(),
-            position_de_liquidite: ctx.accounts.position_de_liquidite.key(),
-            modele_de_taux: ctx.accounts.modele_de_taux.key(),
-            coffre_de_la_venue: ctx.accounts.coffre_de_la_venue.key(),
-            compte_de_reclamation: ctx.accounts.compte_de_reclamation.key(),
-            liquidite: ctx.accounts.liquidite.key(),
-            programme_de_liquidite: ctx.accounts.programme_de_liquidite.key(),
-            modele_de_recompenses: ctx.accounts.modele_de_recompenses.key(),
-            programme_de_jeton: ctx.accounts.programme_de_jeton.key(),
-            programme_de_compte_associe: ctx.accounts.programme_de_compte_associe.key(),
-            programme_systeme: ctx.accounts.programme_systeme.key(),
-        },
+        ctx.accounts.programme_de_pret.key(),
+        &ctx.accounts.comptes_de_la_venue(),
         actif,
         parts_maximales,
     );
-
-    let coffre = ctx.accounts.coffre.key();
-    let marche_cle = ctx.accounts.marche.key();
-    let graines: &[&[u8]] = &[
-        POSITION_SEED,
-        coffre.as_ref(),
-        marche_cle.as_ref(),
-        &[ctx.bumps.position],
-    ];
-
-    invoke_signed(
-        &retrait,
-        &[
-            ctx.accounts.position.to_account_info(),
-            ctx.accounts.recu_de_la_position.to_account_info(),
-            ctx.accounts.actif_de_la_position.to_account_info(),
-            ctx.accounts.administration.to_account_info(),
-            ctx.accounts.marche.to_account_info(),
-            ctx.accounts.actif.to_account_info(),
-            ctx.accounts.jeton_de_recu.to_account_info(),
-            ctx.accounts.reserves_de_liquidite.to_account_info(),
-            ctx.accounts.position_de_liquidite.to_account_info(),
-            ctx.accounts.modele_de_taux.to_account_info(),
-            ctx.accounts.coffre_de_la_venue.to_account_info(),
-            ctx.accounts.compte_de_reclamation.to_account_info(),
-            ctx.accounts.liquidite.to_account_info(),
-            ctx.accounts.programme_de_liquidite.to_account_info(),
-            ctx.accounts.modele_de_recompenses.to_account_info(),
-            ctx.accounts.programme_de_jeton.to_account_info(),
-            ctx.accounts.programme_de_compte_associe.to_account_info(),
-            ctx.accounts.programme_systeme.to_account_info(),
-            ctx.accounts.programme_de_pret.to_account_info(),
-        ],
-        &[graines],
-    )?;
+    ctx.accounts.invoquer_signe(&retrait)?;
 
     ctx.accounts.actif_de_la_position.reload()?;
     ctx.accounts.recu_de_la_position.reload()?;
@@ -232,6 +252,54 @@ pub fn handle_retirer_jupiter_lend(
         recu,
         brulees
     );
+    Ok(())
+}
 
+/// Sort l'INTEGRALITE de la position vers son compte d'actif.
+///
+/// LE CHEMIN D'URGENCE. Il ne demande pas de montant : il brule le solde entier
+/// de jetons de recu, quel qu'il soit. C'est ce qui permet de sortir sans avoir
+/// a valoriser d'abord, au moment ou l'on veut surtout aller vite.
+///
+/// LE MINIMUM RESTE EXIGE de l'appelant. Un chemin d'urgence dont la borne
+/// serait inventee echouerait le jour ou il sert ; poser zero est possible et
+/// signifie « sortir a tout prix », ce qui reste une decision de l'operateur et
+/// non un defaut de ce programme.
+pub fn handle_racheter_tout(ctx: Context<SortirDeJupiterLend>, actif_minimal: u64) -> Result<()> {
+    ctx.accounts.rafraichir_et_lire()?;
+
+    let actif_avant = ctx.accounts.actif_de_la_position.amount;
+    let parts = ctx.accounts.recu_de_la_position.amount;
+    require!(parts > 0, AllocatorError::PositionVide);
+
+    let rachat = cpi::instruction_rachat(
+        ctx.accounts.programme_de_pret.key(),
+        &ctx.accounts.comptes_de_la_venue(),
+        parts,
+        actif_minimal,
+    );
+    ctx.accounts.invoquer_signe(&rachat)?;
+
+    ctx.accounts.actif_de_la_position.reload()?;
+    ctx.accounts.recu_de_la_position.reload()?;
+
+    let recu = ctx
+        .accounts
+        .actif_de_la_position
+        .amount
+        .checked_sub(actif_avant)
+        .ok_or(AllocatorError::SoldeIncoherent)?;
+    require!(recu >= actif_minimal, AllocatorError::ActifInsuffisant);
+
+    // LA POSITION DOIT ETRE VIDE, et le verifier n'est pas redondant avec la
+    // borne : celle-ci porte sur l'actif recu, pas sur ce qui reste. Une venue
+    // qui ne brulerait qu'une partie des parts rendrait assez d'actif pour
+    // satisfaire le minimum tout en laissant une exposition derriere.
+    require!(
+        ctx.accounts.recu_de_la_position.amount == 0,
+        AllocatorError::RachatIncomplet
+    );
+
+    msg!("rachat integral de {} parts contre {} unites", parts, recu);
     Ok(())
 }

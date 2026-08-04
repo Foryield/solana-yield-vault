@@ -48,8 +48,11 @@ fn l_adresse_de_position_correspond_a_la_fixture() {
         &program_id,
     );
 
+    let (configuration, bump_configuration) =
+        Pubkey::find_program_address(&[allocator::state::CONFIGURATION_SEED], &program_id);
+
     let attendu = format!(
-        "{{\n  \"programId\": \"{program_id}\",\n  \"coffre\": \"{coffre}\",\n  \"marche\": \"{marche}\",\n  \"position\": \"{position}\",\n  \"bump\": {bump}\n}}\n"
+        "{{\n  \"programId\": \"{program_id}\",\n  \"coffre\": \"{coffre}\",\n  \"marche\": \"{marche}\",\n  \"position\": \"{position}\",\n  \"bump\": {bump},\n  \"configuration\": \"{configuration}\",\n  \"bumpConfiguration\": {bump_configuration}\n}}\n"
     );
 
     let chemin = chemin_fixture();

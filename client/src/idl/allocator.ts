@@ -35,43 +35,51 @@ export type Allocator = {
       ],
       "accounts": [
         {
-          "name": "operateur",
+          "name": "admin",
           "docs": [
-            "Declencheur. L'etape 1 ne lui demande que de signer la transaction ;",
-            "l'etape 2 attachera une autorite verifiee a la position."
+            "SEUL HABILITE. L'etape 1 acceptait n'importe quel signataire, ce qui ne",
+            "permettait aucun vol mais laissait un tiers decider quand nos fonds",
+            "bougeaient."
           ],
-          "signer": true
-        },
-        {
-          "name": "coffre",
-          "docs": [
-            "Coffre servi. Employe UNIQUEMENT comme graine de la position : aucune",
-            "donnee n'en est lue, ce qui evite de lier l'allocateur a la disposition",
-            "du compte de coffre."
+          "signer": true,
+          "relations": [
+            "configuration"
           ]
         },
         {
-          "name": "marche",
-          "docs": [
-            "Compte de marche de la venue, decode par `lire_marche` APRES le",
-            "rafraichissement des prix."
-          ],
-          "writable": true
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "position",
           "docs": [
-            "Autorite de signature de la position, une par couple coffre et marche.",
-            "Sans donnees a l'etape 1 : elle signe et detient, elle ne raconte rien.",
+            "Position, a l'adresse meme qui signe les invocations croisees.",
             "",
-            "DECLAREE MUTABLE, ET C'EST OBLIGATOIRE plutot que prudent. La venue",
-            "attend son signataire en ECRITURE, son IDL le declarant `writable`. Une",
-            "invocation croisee ne peut jamais accorder plus de droits qu'elle n'en a",
-            "recus : sans `mut` ici, le programme demande une elevation et l'execution",
-            "s'arrete sur « writable privilege escalated », qui nomme le compte mais",
-            "pas la cause. Constate sur devnet le 04/08, pas deduit.",
-            "",
-            "graines, donc un compte etranger ne peut pas se presenter ici."
+            "Les trois `has_one` remplacent autant de verifications ecrites a la main",
+            "dans le corps du gestionnaire a l'etape 1. L'actif et le jeton de recu",
+            "ont ete lus dans le marche a l'ouverture et figes : plus rien ne peut",
+            "presenter un mint qui n'est pas celui de cette position."
           ],
           "writable": true,
           "pda": {
@@ -91,14 +99,28 @@ export type Allocator = {
               },
               {
                 "kind": "account",
-                "path": "coffre"
+                "path": "position.coffre",
+                "account": "position"
               },
               {
                 "kind": "account",
-                "path": "marche"
+                "path": "position.marche",
+                "account": "position"
               }
             ]
           }
+        },
+        {
+          "name": "marche",
+          "docs": [
+            "Compte de marche de la venue, decode par `lire_marche` APRES le",
+            "rafraichissement des prix.",
+            "verifiee par le `has_one` de la position."
+          ],
+          "writable": true,
+          "relations": [
+            "position"
+          ]
         },
         {
           "name": "actifDeLaPosition",
@@ -111,16 +133,23 @@ export type Allocator = {
           "name": "recuDeLaPosition",
           "docs": [
             "Jetons de recu detenus par la position, destination du depot. C'est le",
-            "solde de CE compte qui mesure ce que la venue a reellement emis."
+            "solde de CE compte qui mesure ce que la venue a reellement emis, et sur",
+            "lui que le plafond est verifie."
           ],
           "writable": true
         },
         {
-          "name": "actif"
+          "name": "actif",
+          "relations": [
+            "position"
+          ]
         },
         {
           "name": "jetonDeRecu",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "position"
+          ]
         },
         {
           "name": "administration"
@@ -172,47 +201,121 @@ export type Allocator = {
       ]
     },
     {
-      "name": "retirerJupiterLend",
+      "name": "initialiser",
       "docs": [
-        "Retire `actif` unites de Jupiter Lend en brulant au plus",
-        "`parts_maximales` jetons de recu.",
-        "",
-        "Le plafond, LUI, est un argument, et l'asymetrie avec le depot est",
-        "argumentee dans l'en-tete du gestionnaire : la conversion inverse n'a",
-        "jamais ete mesuree, et une borne deduite plutot que mesuree ferait",
-        "echouer tous les retraits."
+        "Fige l'administrateur de l'allocateur. Appelable une seule fois."
       ],
       "discriminator": [
-        159,
-        47,
-        138,
-        61,
-        195,
-        82,
-        120,
-        225
+        66,
+        231,
+        132,
+        19,
+        144,
+        136,
+        124,
+        102
       ],
       "accounts": [
         {
-          "name": "operateur",
+          "name": "admin",
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "configuration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "ouvrirPosition",
+      "docs": [
+        "Ouvre une position sur un couple coffre et marche, avec son plafond."
+      ],
+      "discriminator": [
+        226,
+        104,
+        133,
+        189,
+        221,
+        75,
+        241,
+        129
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "coffre"
         },
         {
           "name": "marche",
-          "writable": true
+          "docs": [
+            "Compte de marche de la venue. Decode ICI pour en tirer l'actif et le",
+            "jeton de recu, qui sont ensuite FIGES dans la position : les relire a",
+            "chaque mouvement laisserait une chance de presenter un autre marche."
+          ]
         },
         {
           "name": "position",
-          "docs": [
-            "Mutable pour la meme raison qu'au depot : la venue attend son signataire",
-            "en ecriture, et une invocation croisee ne peut pas elever un droit",
-            "qu'elle n'a pas recu.",
-            "",
-            "graines."
-          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -241,25 +344,137 @@ export type Allocator = {
           }
         },
         {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "plafond",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "racheterTout",
+      "docs": [
+        "CHEMIN D'URGENCE. Brule l'integralite du solde de jetons de recu contre",
+        "au moins `actif_minimal` unites.",
+        "",
+        "Libelle en parts et non en actif, ce qui permet de sortir sans avoir a",
+        "valoriser d'abord. Reste ouvert quand la position est suspendue : une",
+        "suspension protege des depots, elle n'enferme pas les fonds."
+      ],
+      "discriminator": [
+        73,
+        62,
+        171,
+        160,
+        16,
+        184,
+        87,
+        57
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.coffre",
+                "account": "position"
+              },
+              {
+                "kind": "account",
+                "path": "position.marche",
+                "account": "position"
+              }
+            ]
+          }
+        },
+        {
+          "name": "marche",
+          "docs": [
+            "verifiee par le `has_one` de la position."
+          ],
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
           "name": "actifDeLaPosition",
           "docs": [
-            "Actif detenu par la position, destination du retrait."
+            "Actif detenu par la position, destination de la sortie."
           ],
           "writable": true
         },
         {
           "name": "recuDeLaPosition",
           "docs": [
-            "Jetons de recu detenus par la position, source du retrait."
+            "Jetons de recu detenus par la position, source de la sortie."
           ],
           "writable": true
         },
         {
-          "name": "actif"
+          "name": "actif",
+          "relations": [
+            "position"
+          ]
         },
         {
           "name": "jetonDeRecu",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "position"
+          ]
         },
         {
           "name": "administration"
@@ -282,9 +497,276 @@ export type Allocator = {
         {
           "name": "compteDeReclamation",
           "docs": [
-            "COMPTE DE RECLAMATION, propre au retrait. Adresse derivee du programme",
-            "de recompenses que rien ne cree automatiquement : elle doit exister",
-            "AVANT le premier retrait. C'est un prealable d'exploitation."
+            "COMPTE DE RECLAMATION, propre aux sorties. Derive de l'administration de",
+            "la venue et non du retireur, malgre une graine qui dit « user » : il en",
+            "existe un seul par actif, et celui de l'USDC devnet existait deja."
+          ],
+          "writable": true
+        },
+        {
+          "name": "liquidite",
+          "writable": true
+        },
+        {
+          "name": "programmeDeLiquidite",
+          "writable": true
+        },
+        {
+          "name": "modeleDeRecompenses"
+        },
+        {
+          "name": "programmeDePret"
+        },
+        {
+          "name": "programmeDeJeton"
+        },
+        {
+          "name": "programmeDeCompteAssocie"
+        },
+        {
+          "name": "programmeSysteme"
+        }
+      ],
+      "args": [
+        {
+          "name": "actifMinimal",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "reglerPlafond",
+      "docs": [
+        "Regle le plafond de protocole, qui borne la VALORISATION de la position."
+      ],
+      "discriminator": [
+        102,
+        18,
+        137,
+        123,
+        208,
+        1,
+        209,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.coffre",
+                "account": "position"
+              },
+              {
+                "kind": "account",
+                "path": "position.marche",
+                "account": "position"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "plafond",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "retirerJupiterLend",
+      "docs": [
+        "Retire `actif` unites de Jupiter Lend en brulant au plus",
+        "`parts_maximales` jetons de recu.",
+        "",
+        "Le plafond, LUI, est un argument, et l'asymetrie avec le depot est",
+        "argumentee dans l'en-tete du gestionnaire : la conversion inverse n'a",
+        "jamais ete mesuree, et une borne deduite plutot que mesuree ferait",
+        "echouer tous les retraits."
+      ],
+      "discriminator": [
+        159,
+        47,
+        138,
+        61,
+        195,
+        82,
+        120,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.coffre",
+                "account": "position"
+              },
+              {
+                "kind": "account",
+                "path": "position.marche",
+                "account": "position"
+              }
+            ]
+          }
+        },
+        {
+          "name": "marche",
+          "docs": [
+            "verifiee par le `has_one` de la position."
+          ],
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "actifDeLaPosition",
+          "docs": [
+            "Actif detenu par la position, destination de la sortie."
+          ],
+          "writable": true
+        },
+        {
+          "name": "recuDeLaPosition",
+          "docs": [
+            "Jetons de recu detenus par la position, source de la sortie."
+          ],
+          "writable": true
+        },
+        {
+          "name": "actif",
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "jetonDeRecu",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "administration"
+        },
+        {
+          "name": "reservesDeLiquidite",
+          "writable": true
+        },
+        {
+          "name": "positionDeLiquidite",
+          "writable": true
+        },
+        {
+          "name": "modeleDeTaux"
+        },
+        {
+          "name": "coffreDeLaVenue",
+          "writable": true
+        },
+        {
+          "name": "compteDeReclamation",
+          "docs": [
+            "COMPTE DE RECLAMATION, propre aux sorties. Derive de l'administration de",
+            "la venue et non du retireur, malgre une graine qui dit « user » : il en",
+            "existe un seul par actif, et celui de l'USDC devnet existait deja."
           ],
           "writable": true
         },
@@ -321,6 +803,121 @@ export type Allocator = {
           "name": "partsMaximales",
           "type": "u64"
         }
+      ]
+    },
+    {
+      "name": "suspendre",
+      "docs": [
+        "Suspend ou reprend la position. Ne bloque que les depots."
+      ],
+      "discriminator": [
+        161,
+        94,
+        141,
+        64,
+        145,
+        147,
+        253,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.coffre",
+                "account": "position"
+              },
+              {
+                "kind": "account",
+                "path": "position.marche",
+                "account": "position"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "suspendue",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "configuration",
+      "discriminator": [
+        192,
+        79,
+        172,
+        30,
+        21,
+        173,
+        25,
+        43
+      ]
+    },
+    {
+      "name": "position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
       ]
     }
   ],
@@ -384,6 +981,139 @@ export type Allocator = {
       "code": 6011,
       "name": "soldeIncoherent",
       "msg": "Le solde d'un compte de la position a varie dans le sens que l'operation interdit"
+    },
+    {
+      "code": 6012,
+      "name": "positionSuspendue",
+      "msg": "La position est suspendue : aucun depot n'est accepte"
+    },
+    {
+      "code": 6013,
+      "name": "plafondDepasse",
+      "msg": "Ce depot porterait la valorisation de la position au-dela de son plafond"
+    },
+    {
+      "code": 6014,
+      "name": "positionVide",
+      "msg": "La position ne detient aucun jeton de recu : il n'y a rien a racheter"
+    },
+    {
+      "code": 6015,
+      "name": "rachatIncomplet",
+      "msg": "Le rachat integral a laisse des jetons de recu derriere lui"
+    },
+    {
+      "code": 6016,
+      "name": "marcheDeLaPositionEtranger",
+      "msg": "Le marche presente n'est pas celui que la position a fige a son ouverture"
+    }
+  ],
+  "types": [
+    {
+      "name": "configuration",
+      "docs": [
+        "Qui a le droit d'agir sur les positions de cet allocateur.",
+        "",
+        "PROPRE A L'ALLOCATEUR PLUTOT QU'EMPRUNTEE AU COFFRE, et c'est un choix",
+        "argumente. Lire l'administrateur dans le compte du coffre donnerait une",
+        "source unique, mais recreerait le couplage que la conception a defait en",
+        "separant les deux programmes : l'allocateur dependrait de la disposition",
+        "d'un compte qu'il ne possede pas, et un changement du coffre le casserait en",
+        "silence.",
+        "",
+        "Le prix est assume : « qui gouverne cet actif » existe des lors a deux",
+        "endroits, et rien n'oblige les deux a concorder. C'est une divergence a",
+        "surveiller en exploitation, pas une impossibilite."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Seul habilite a ouvrir une position, regler son plafond, la suspendre et",
+              "declencher un retrait integral."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "position",
+      "docs": [
+        "Ce qui est permis sur un couple coffre et marche.",
+        "",
+        "CE COMPTE VIT A L'ADRESSE QUI SIGNE LES INVOCATIONS CROISEES. L'etape 1 n'y",
+        "attachait aucune donnee : l'adresse ne servait qu'a signer et a detenir les",
+        "comptes de jeton. Elle porte desormais l'etat, sans changer d'adresse, donc",
+        "sans invalider les comptes de jeton deja crees."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "coffre",
+            "docs": [
+              "Coffre servi. Redondant avec la graine, et conserve pour qu'un lecteur",
+              "hors chaine sache de quoi parle ce compte sans redériver l'adresse."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "marche",
+            "docs": [
+              "Marche de la venue."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "actif",
+            "docs": [
+              "Actif place. Fige a l'ouverture : le marche le declare, et un marche ne",
+              "change pas d'actif."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "jetonDeRecu",
+            "docs": [
+              "Jeton de recu de la venue, fige a l'ouverture pour la meme raison."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "plafond",
+            "docs": [
+              "PLAFOND DE PROTOCOLE, en unites d'actif, porte sur la VALORISATION de la",
+              "position et non sur le cumul depose.",
+              "",
+              "Les interets peuvent porter la valorisation au-dessus de ce plafond sans",
+              "aucun geste de notre part. Cela bloque alors les nouveaux depots et ne",
+              "force rien a sortir : un plafond dit ce qu'on accepte d'exposer de plus,",
+              "il n'ordonne pas de liquider."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "suspendue",
+            "docs": [
+              "Coupe-circuit de la position. Suspendre bloque les nouveaux depots sans",
+              "rien deplacer ; retraits et retrait integral restent ouverts, sans quoi",
+              "la suspension enfermerait les fonds au lieu de les proteger."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
     }
   ]
 };

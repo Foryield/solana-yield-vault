@@ -85,6 +85,32 @@ pub fn parts_attendues_pour_depot(
     u64::try_from(parts).map_err(|_| VenueError::Debordement)
 }
 
+/// Valeur en unites d'actif d'un solde de jetons de recu.
+///
+/// C'EST LE PRIX DU JETON DE RECU QU'IL FAUT, PAS CELUI DE LA LIQUIDITE. Les
+/// deux vivent dans le meme compte et se ressemblent a la troisieme decimale
+/// pres ; seul le premier inclut les recompenses accumulees. Les confondre ne
+/// leve aucune erreur, cela sous-evalue la position d'exactement ce qu'elle a
+/// gagne, ce qui est la faute la plus difficile a voir de toute cette venue.
+///
+/// SERT AU PLAFOND DE PROTOCOLE, qui borne la valorisation et non le cumul
+/// depose : une position peut croitre bien au-dela de ce qu'on y a mis, par les
+/// seuls interets, et c'est cette croissance-la qu'un plafond doit voir.
+///
+/// Le prix doit avoir ete RAFRAICHI dans la meme transaction, sans quoi la
+/// valeur rendue est celle d'un marche perime.
+pub fn valeur_en_actif(parts: u64, prix_jeton: u64) -> Result<u64, VenueError> {
+    if prix_jeton == 0 {
+        return Err(VenueError::PrixNul);
+    }
+    // Aucun debordement possible : `parts` tient dans un u64, donc au plus
+    // 1,85e19, et le produit par un prix du meme ordre reste sous 3,4e38, la
+    // borne du u128. La division par la precision ramene ensuite le resultat
+    // sous `parts` multiplie par le prix rapporte a 1e12.
+    let valeur = (parts as u128) * (prix_jeton as u128) / PRECISION_DES_PRIX;
+    u64::try_from(valeur).map_err(|_| VenueError::Debordement)
+}
+
 /// Ecart entre ce que la venue a reellement emis et ce qu'on attendait.
 ///
 /// DECISION DU PLAN, ET ELLE S'ECARTE DE L'INTEGRATION DE REFERENCE. Celle-ci
@@ -185,6 +211,62 @@ mod tests {
     #[test]
     fn un_montant_maximal_sur_des_prix_sains_ne_deborde_pas() {
         assert!(parts_attendues_pour_depot(u64::MAX, LIQ, JETON).is_ok());
+    }
+
+    /// Valorisation d'un solde reel : les 1 979 614 jetons de recu emis par le
+    /// premier depot devnet du 04/08, au prix du jeton mesure ce jour-la.
+    ///
+    /// LA VALEUR EST CALCULEE, PAS ATTENDUE, et la nuance a mordu : une
+    /// premiere redaction posait 2 000 000, le montant depose, en supposant un
+    /// aller-retour exact. Il rend 1 999 999. L'unite manquante est l'arrondi
+    /// vers le bas de la conversion, et elle est structurelle : un depot suivi
+    /// d'une valorisation ne rend jamais tout a fait ce qu'on a mis.
+    ///
+    /// CONSEQUENCE POUR LE PLAFOND, et c'est pour cela que ce test existe :
+    /// valoriser rend SYSTEMATIQUEMENT un peu moins que le cumul depose, donc
+    /// un plafond pose sur la valorisation ne se declenche jamais par le seul
+    /// effet d'un arrondi. Il ne mord que sur des interets reellement acquis.
+    #[test]
+    fn valorise_un_solde_reel_de_jetons_de_recu() {
+        assert_eq!(valeur_en_actif(1_979_614, 1_010_297_649_056), Ok(1_999_999));
+    }
+
+    /// Le solde reste apres le retrait devnet du 04/08, valorise au meme prix.
+    #[test]
+    fn valorise_le_solde_restant_apres_un_retrait_partiel() {
+        assert_eq!(valeur_en_actif(989_806, 1_010_297_649_056), Ok(999_998));
+    }
+
+    /// LE TEMOIN QUI COMPTE ICI. Employer le prix de la liquidite a la place de
+    /// celui du jeton sous-evalue la position, silencieusement. Sur les prix
+    /// reels du marche, l'ecart existe et se mesure : ce test le fige, pour
+    /// qu'un echange des deux arguments ne passe pas inapercu.
+    #[test]
+    fn le_prix_de_la_liquidite_ne_donne_pas_la_meme_valeur() {
+        let avec_jeton = valeur_en_actif(1_000_000_000, JETON).unwrap();
+        let avec_liquidite = valeur_en_actif(1_000_000_000, LIQ).unwrap();
+        assert_ne!(avec_jeton, avec_liquidite);
+    }
+
+    #[test]
+    fn une_position_vide_ne_vaut_rien() {
+        assert_eq!(valeur_en_actif(0, JETON), Ok(0));
+    }
+
+    /// Un prix nul signale un marche non initialise ou un compte mal decode :
+    /// rendre zero laisserait croire a une position vide, ce qui autoriserait
+    /// un depot que le plafond aurait du refuser.
+    #[test]
+    fn valoriser_a_prix_nul_est_refuse() {
+        assert_eq!(valeur_en_actif(1_000, 0), Err(VenueError::PrixNul));
+    }
+
+    #[test]
+    fn une_valorisation_qui_deborde_est_refusee() {
+        assert_eq!(
+            valeur_en_actif(u64::MAX, u64::MAX),
+            Err(VenueError::Debordement)
+        );
     }
 
     #[test]

@@ -28,6 +28,12 @@ import {
   instructionTransfert,
   instructionDeposerJupiterLend,
   instructionRetirerJupiterLend,
+  instructionRacheterTout,
+  instructionInitialiserAllocateur,
+  instructionOuvrirPosition,
+  instructionReglerPlafond,
+  instructionSuspendre,
+  lirePosition,
   adressesDuCoffre,
   adressesDuHook,
   adressesDeLAllocateur,
@@ -359,8 +365,10 @@ const commandes: Record<
     return {
       actif: mintStr,
       coffre: ctx.coffre.toBase58(),
-      /** Signataire des invocations croisees. Sans donnees a l'etape 1. */
-      position: a.position.toBase58(),
+      /** Signataire des invocations croisees, et porteur de l'etat depuis l'etape 2. */
+      adresseDeLaPosition: a.position.toBase58(),
+      ...(await etatDeLaPosition(ctx)),
+      configuration: a.configuration.toBase58(),
       programmes: {
         pret: ctx.programmes.pret.toBase58(),
         liquidite: ctx.programmes.liquidite.toBase58(),
@@ -379,6 +387,79 @@ const commandes: Record<
           connection, a.recuDeLaPosition, ctx.programmeDeJeton,
         ),
       },
+    };
+  },
+
+  /**
+   * Fige l'administrateur de l'allocateur. UN SEUL APPEL POSSIBLE : le compte
+   * de configuration est cree par cette instruction, donc une seconde tentative
+   * echoue parce qu'il existe deja. C'est ce qui empeche un tiers de
+   * s'attribuer l'administration apres coup.
+   */
+  async configurer(config, []) {
+    const { connection, cle, provider } = contexte(config);
+    const programme = allocatorProgram(exigeAllocateur(config), provider);
+    const ix = await instructionInitialiserAllocateur(programme, cle.publicKey);
+    const signature = await envoyer(connection, cle, [ix]);
+    return { admin: cle.publicKey.toBase58(), signature };
+  },
+
+  /** Ouvre une position sur un actif, avec son plafond de valorisation. */
+  async ouvrir(config, [mintStr, plafondStr]) {
+    if (!mintStr || !plafondStr) throw new Error("usage : ouvrir <mint-actif> <plafond>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionOuvrirPosition(ctx, cle.publicKey, BigInt(plafondStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, plafond: plafondStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * Regle le plafond. L'ABAISSER SOUS LA VALORISATION COURANTE EST ADMIS : c'est
+   * le geste qu'on veut pouvoir faire en premier quand une venue inquiete, et il
+   * bloque tout nouveau depot sans rien forcer a sortir.
+   */
+  async plafonner(config, [mintStr, plafondStr]) {
+    if (!mintStr || !plafondStr) throw new Error("usage : plafonner <mint-actif> <plafond>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionReglerPlafond(ctx, cle.publicKey, BigInt(plafondStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /** Suspend ou reprend la position. Ne bloque que les depots, jamais les sorties. */
+  async geler(config, [mintStr, etatStr]) {
+    if (!mintStr || (etatStr !== "oui" && etatStr !== "non")) {
+      throw new Error("usage : geler <mint-actif> <oui|non>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionSuspendre(ctx, cle.publicKey, etatStr === "oui");
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * CHEMIN D'URGENCE : sort l'integralite de la position de la venue.
+   *
+   * Aucun montant n'est demande, seulement le minimum a recevoir : sortir ne
+   * doit pas exiger de valoriser d'abord. Poser zero signifie « sortir a tout
+   * prix », ce qui est une decision d'operateur assumee et non un defaut.
+   */
+  async evacuer(config, [mintStr, minimumStr]) {
+    if (!mintStr || !minimumStr) {
+      throw new Error("usage : evacuer <mint-actif> <actif-minimal>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionRacheterTout(ctx, cle.publicKey, BigInt(minimumStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      actif: mintStr,
+      actifMinimal: minimumStr,
+      ...(await soldesDeLaPosition(connection, ctx)),
+      signature,
     };
   },
 
@@ -575,6 +656,23 @@ async function contexteAllocateur(
     actif,
     programmeDeJeton: compteMint.owner,
     coffre,
+  };
+}
+
+/** Etat de la position tel que le programme le porte, ou son absence. */
+async function etatDeLaPosition(
+  ctx: AllocatorContext,
+): Promise<{ position: Record<string, unknown> | null }> {
+  const etat = await lirePosition(ctx);
+  return {
+    position: etat
+      ? {
+          plafond: etat.plafond.toString(),
+          suspendue: etat.suspendue,
+          actif: etat.actif.toBase58(),
+          jetonDeRecu: etat.jetonDeRecu.toBase58(),
+        }
+      : null,
   };
 }
 

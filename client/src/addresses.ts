@@ -24,7 +24,8 @@ export const DEAD_SEED = Buffer.from("dead");
 export const CONFIG_SEED = Buffer.from("config");
 export const ALLOW_SEED = Buffer.from("allow");
 
-/** Graine de l'allocateur. Doit rester identique a `programs/allocator/src/state.rs`. */
+/** Graines de l'allocateur. Doivent rester identiques a `programs/allocator/src/state.rs`. */
+export const CONFIGURATION_SEED = Buffer.from("configuration");
 export const POSITION_SEED = Buffer.from("position");
 
 /**
@@ -79,6 +80,14 @@ export function allowlistEntryAddress(
     [ALLOW_SEED, mint.toBuffer(), holder.toBuffer()],
     hookProgramId,
   )[0];
+}
+
+/**
+ * Configuration de l'allocateur. Un seul compte pour tout le programme : c'est
+ * lui qui porte l'administrateur habilite a agir sur les positions.
+ */
+export function configurationAddress(allocatorProgramId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([CONFIGURATION_SEED], allocatorProgramId)[0];
 }
 
 /**
