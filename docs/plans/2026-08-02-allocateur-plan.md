@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.5 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Les trois programmes de la venue lus sur la chaîne, les graines confirmées, le compte de réclamation existe déjà : le préalable tombe |
 | 1.4 | 2026-08-04 | Étape 1 câblée. L'éditeur expose des instructions bornées que la lecture du 02/08 avait manquées : le plancher est désormais appliqué des deux côtés. Rotation des rangs 4 à 6 corrigée |
 | 1.3 | 2026-08-03 | Autorité de signature tranchée : une par position, actif et venue, pour que le défaut d'un adaptateur reste borné à sa venue |
 | 1.2 | 2026-08-02 | Comptes relevés dans l'IDL : dix-sept et dix-huit confirmés, les deux ordres diffèrent, le rafraîchissement du taux ne coûte aucun compte |
@@ -201,10 +202,15 @@ marginfi procède de même avec un module dédié.
 
 *Au 04/08 : le câblage est écrit et vérifié contre l'IDL, les deux instructions
 `deposer_jupiter_lend` et `retirer_jupiter_lend` existent, l'autorité de
-position signe. **Le réseau n'a toujours pas été touché**, donc l'étape n'est
-pas close et S4 non plus. Il manque le chemin d'exploitation : dérivation des
-comptes de la venue hors chaîne, création préalable du compte de réclamation,
-approvisionnement des comptes de jeton de la position.*
+position signe. Le chemin d'exploitation est écrit lui aussi et **éprouvé en
+lecture contre devnet** : les vingt-deux adresses se dérivent, les dix de la
+venue existent toutes, et le compte de réclamation qu'on croyait bloquant existe
+déjà. Voir `docs/evidence/allocator.md`.*
+
+***Il ne manque plus qu'un déploiement et deux transactions.** L'allocateur n'a
+jamais été déployé : aucun binaire ne répond à son adresse. Tant que le dépôt et
+le retrait ne sont pas signés sur devnet, l'étape 1 n'est pas close et S4 non
+plus.*
 
 **Étape 2 - l'adaptateur, ses plafonds et son chemin d'urgence.** Un adaptateur
 par venue sous `src/venues/`, plafond par protocole, retrait d'urgence. La
@@ -271,10 +277,16 @@ l'échec le plus opaque de Solana. Chaque adaptateur déclare donc ses comptes
 séparément, sans facteur commun.
 
 **Le compte de réclamation n'existe que côté retrait.** C'est l'adresse dérivée
-que le guide de référence décrit comme une mise en place unique, à créer par une
-instruction permissionnée du programme de récompenses avant le premier retrait,
-et que rien ne crée automatiquement. Le préalable d'exploitation identifié plus
-haut a donc un nom et une position.
+que le guide de référence décrit comme une mise en place unique, à créer avant le
+premier retrait, et que rien ne crée automatiquement. Le préalable
+d'exploitation identifié plus haut a donc un nom et une position.
+
+*Corrigé le 04/08, après lecture de sa dérivation : sa graine n'est pas le
+retireur mais **l'administration de la venue**, malgré un nom de graine qui dit
+« user », et elle relève du **programme de liquidité**, non de celui des
+récompenses. Conséquence : il en existe **un seul par actif**, partagé par tous,
+et celui du marché USDC devnet **existe déjà**. Le préalable est donc levé pour
+l'actif visé. Il resterait entier pour un actif dont personne n'a jamais retiré.*
 
 **Le rafraîchissement du taux ne coûte aucun compte supplémentaire.** `updateRate`
 n'en prend que cinq, et ces cinq figurent déjà parmi les dix-sept du dépôt :

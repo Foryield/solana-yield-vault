@@ -17,12 +17,39 @@ export interface Config {
   rpcUrl: string;
   vaultProgramId: PublicKey;
   hookProgramId: PublicKey;
+  /**
+   * Identifiant de l'allocateur, exige seulement par les commandes de venue.
+   *
+   * FACULTATIF ET NON DEDUIT : l'allocateur n'est pas deploye partout ou le
+   * coffre l'est, et le rendre obligatoire empecherait d'administrer un coffre
+   * sur un reseau ou il n'existe pas. Les commandes qui en ont besoin le
+   * reclament explicitement, plutot que la configuration entiere le reclame
+   * pour tout le monde.
+   */
+  allocatorProgramId: PublicKey | null;
   keypairPath: string;
   /** Vrai si l'on vise le mainnet : sert a exiger une confirmation explicite. */
   estMainnet: boolean;
 }
 
 export class ConfigError extends Error {}
+
+/**
+ * Reclame l'allocateur au moment ou une commande en a besoin.
+ *
+ * Le refus nomme la variable ET la raison : un identifiant de programme depend
+ * du deploiement, donc rien ne peut le deviner.
+ */
+export function exigeAllocateur(config: Config): PublicKey {
+  if (config.allocatorProgramId === null) {
+    throw new ConfigError(
+      `ALLOCATOR_PROGRAM_ID est obligatoire pour cette commande. Il depend du ` +
+        `deploiement et ne peut pas etre devine ; celui de devnet est dans ` +
+        `docs/evidence/.`,
+    );
+  }
+  return config.allocatorProgramId;
+}
 
 function exige(nom: string, env: Record<string, string | undefined>): string {
   const v = env[nom];
@@ -70,6 +97,9 @@ export function chargerConfig(env: Record<string, string | undefined>): Config {
       exige("VAULT_PROGRAM_ID", env),
     ),
     hookProgramId: clePublique("HOOK_PROGRAM_ID", exige("HOOK_PROGRAM_ID", env)),
+    allocatorProgramId: env["ALLOCATOR_PROGRAM_ID"]?.trim()
+      ? clePublique("ALLOCATOR_PROGRAM_ID", env["ALLOCATOR_PROGRAM_ID"].trim())
+      : null,
     keypairPath: exige("SOLANA_KEYPAIR", env),
     estMainnet,
   };

@@ -2,8 +2,10 @@ import { Program, type Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import vaultIdl from "./idl/yield_vault.json" with { type: "json" };
 import hookIdl from "./idl/compliance_hook.json" with { type: "json" };
+import allocatorIdl from "./idl/allocator.json" with { type: "json" };
 import type { YieldVault } from "./idl/yield_vault.js";
 import type { ComplianceHook } from "./idl/compliance_hook.js";
+import type { Allocator } from "./idl/allocator.js";
 
 /**
  * Construction des clients Anchor des deux programmes.
@@ -21,7 +23,7 @@ import type { ComplianceHook } from "./idl/compliance_hook.js";
  * argument rend cette dependance visible plutot que devinee.
  */
 
-export type { ComplianceHook, YieldVault };
+export type { Allocator, ComplianceHook, YieldVault };
 
 /**
  * Unique conversion de type du paquet, et elle est bornee : les types generes
@@ -47,8 +49,16 @@ export function hookProgram(
   return new Program<ComplianceHook>(avecAdresse(hookIdl, programId), provider);
 }
 
+export function allocatorProgram(
+  programId: PublicKey,
+  provider: Provider,
+): Program<Allocator> {
+  return new Program<Allocator>(avecAdresse(allocatorIdl, programId), provider);
+}
+
 /** IDL bruts, pour inspecter l'interface sans instancier de client. */
 export const idls = {
   vault: vaultIdl,
   hook: hookIdl,
+  allocator: allocatorIdl,
 };

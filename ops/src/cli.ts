@@ -10,6 +10,7 @@ import {
 import {
   TOKEN_2022_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
@@ -17,6 +18,7 @@ import {
 import {
   hookProgram,
   vaultProgram,
+  allocatorProgram,
   instructionAttacher,
   instructionAutoriser,
   instructionRevoquer,
@@ -24,13 +26,23 @@ import {
   instructionDeposit,
   instructionWithdraw,
   instructionTransfert,
+  instructionDeposerJupiterLend,
+  instructionRetirerJupiterLend,
   adressesDuCoffre,
   adressesDuHook,
+  adressesDeLAllocateur,
   adresseEntree,
   lireCoffre,
   estAutorise,
+  PROGRAMMES_JUPITER_LEND_DEVNET,
+  type AllocatorContext,
 } from "@foryield/solana-yield-vault-client";
-import { chargerConfig, ConfigError, type Config } from "./config.js";
+import {
+  chargerConfig,
+  ConfigError,
+  exigeAllocateur,
+  type Config,
+} from "./config.js";
 
 /**
  * Administration du coffre et du module de conformite.
@@ -297,6 +309,194 @@ const commandes: Record<
     };
   },
 
+  /**
+   * Inspecte la venue pour un actif : toutes les adresses, et lesquelles
+   * EXISTENT deja sur la chaine.
+   *
+   * NE SIGNE RIEN. C'est la commande a passer avant de depenser quoi que ce
+   * soit : sur vingt et un comptes dont dix-huit appartiennent a un tiers, un
+   * compte absent produit un echec qui ne nomme rien. Le voir avant vaut mieux
+   * que le deduire apres.
+   */
+  async venue(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : venue <mint-de-l-actif>");
+    const { connection, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const a = adressesDeLAllocateur(ctx);
+
+    // L'AUTORITE DE POSITION EST ABSENTE DE CETTE LISTE, et ce n'est pas un
+    // oubli : a l'etape 1 elle ne porte aucune donnee, donc elle n'existe pas
+    // en tant que compte et n'existera jamais tant que rien ne l'y oblige. La
+    // faire figurer parmi les comptes a controler enverrait un operateur creer
+    // ce qui n'a pas a l'etre. Son adresse est rendue a part.
+    const aInspecter: Record<string, PublicKey> = {
+      marche: a.venue.marche,
+      jetonDeRecu: a.venue.jetonDeRecu,
+      administration: a.venue.administration,
+      reserves: a.venue.reserves,
+      positionDeLiquidite: a.venue.positionDeLiquidite,
+      modeleDeTaux: a.venue.modeleDeTaux,
+      liquidite: a.venue.liquidite,
+      modeleDeRecompenses: a.venue.modeleDeRecompenses,
+      compteDeReclamation: a.venue.compteDeReclamation,
+      coffreDeLaVenue: a.venue.coffreDeLaVenue,
+      actifDeLaPosition: a.actifDeLaPosition,
+      recuDeLaPosition: a.recuDeLaPosition,
+    };
+
+    const comptes: Record<string, { adresse: string; existe: boolean }> = {};
+    const infos = await connection.getMultipleAccountsInfo(
+      Object.values(aInspecter),
+      "confirmed",
+    );
+    Object.keys(aInspecter).forEach((nom, i) => {
+      comptes[nom] = {
+        adresse: aInspecter[nom]!.toBase58(),
+        existe: infos[i] !== null,
+      };
+    });
+
+    return {
+      actif: mintStr,
+      coffre: ctx.coffre.toBase58(),
+      /** Signataire des invocations croisees. Sans donnees a l'etape 1. */
+      position: a.position.toBase58(),
+      programmes: {
+        pret: ctx.programmes.pret.toBase58(),
+        liquidite: ctx.programmes.liquidite.toBase58(),
+        recompenses: ctx.programmes.recompenses.toBase58(),
+      },
+      comptes,
+      // Ce qui manque, dit en clair plutot qu'a deduire de la liste ci-dessus.
+      manquants: Object.entries(comptes)
+        .filter(([, v]) => !v.existe)
+        .map(([k]) => k),
+      soldes: {
+        actifDeLaPosition: await lireSolde(
+          connection, a.actifDeLaPosition, ctx.programmeDeJeton,
+        ),
+        recuDeLaPosition: await lireSolde(
+          connection, a.recuDeLaPosition, ctx.programmeDeJeton,
+        ),
+      },
+    };
+  },
+
+  /**
+   * Cree les deux comptes de jeton de la position, en compte associe idempotent.
+   *
+   * PREALABLE AU PREMIER DEPOT, et il ne se cree pas tout seul : la venue verse
+   * sur un compte qui doit exister. Idempotent, donc rejouable sans dommage.
+   */
+  async preparer(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : preparer <mint-de-l-actif>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const a = adressesDeLAllocateur(ctx);
+
+    const creations = [
+      createAssociatedTokenAccountIdempotentInstruction(
+        cle.publicKey, a.actifDeLaPosition, a.position, ctx.actif, ctx.programmeDeJeton,
+      ),
+      createAssociatedTokenAccountIdempotentInstruction(
+        cle.publicKey, a.recuDeLaPosition, a.position, a.venue.jetonDeRecu,
+        ctx.programmeDeJeton,
+      ),
+    ];
+    const signature = await envoyer(connection, cle, creations);
+    return {
+      actif: mintStr,
+      position: a.position.toBase58(),
+      comptes: {
+        actifDeLaPosition: a.actifDeLaPosition.toBase58(),
+        recuDeLaPosition: a.recuDeLaPosition.toBase58(),
+      },
+      signature,
+    };
+  },
+
+  /**
+   * Verse de l'actif de l'operateur vers le compte de la position.
+   *
+   * L'ALLOCATEUR NE SE SERT PAS TOUT SEUL, et c'est deliberer a l'etape 1 : le
+   * coffre detient son actif sur une adresse derivee dont l'allocateur ne sait
+   * pas signer, et l'y raccorder est un chantier a part. En attendant, la
+   * position est dotee explicitement, ce qui rend la dotation visible plutot
+   * que cachee dans un enchainement.
+   */
+  async approvisionner(config, [mintStr, montantStr]) {
+    if (!mintStr || !montantStr) {
+      throw new Error("usage : approvisionner <mint-actif> <montant>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const a = adressesDeLAllocateur(ctx);
+    const source = getAssociatedTokenAddressSync(
+      ctx.actif, cle.publicKey, false, ctx.programmeDeJeton,
+    );
+    const ix = createTransferCheckedInstruction(
+      source,
+      ctx.actif,
+      a.actifDeLaPosition,
+      cle.publicKey,
+      BigInt(montantStr),
+      (await getMint(connection, ctx.actif, "confirmed", ctx.programmeDeJeton)).decimals,
+      [],
+      ctx.programmeDeJeton,
+    );
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      actif: mintStr,
+      montant: montantStr,
+      source: source.toBase58(),
+      ...(await soldesDeLaPosition(connection, ctx)),
+      signature,
+    };
+  },
+
+  /** Place l'actif de la position sur la venue. Le plancher est calcule on-chain. */
+  async placer(config, [mintStr, montantStr]) {
+    if (!mintStr || !montantStr) throw new Error("usage : placer <mint-actif> <montant>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionDeposerJupiterLend(ctx, cle.publicKey, BigInt(montantStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      actif: mintStr,
+      montant: montantStr,
+      ...(await soldesDeLaPosition(connection, ctx)),
+      signature,
+    };
+  },
+
+  /**
+   * Rapatrie de l'actif depuis la venue.
+   *
+   * LE PLAFOND DE PARTS EST EXIGE, jamais deduit. La conversion inverse n'a pas
+   * ete mesuree : la calculer ici reviendrait a inventer une borne, et une
+   * borne trop serree fait echouer le retrait. L'operateur la pose depuis ce
+   * qu'il observe, et le programme verifie de son cote que l'actif demande est
+   * bien arrive.
+   */
+  async rapatrier(config, [mintStr, montantStr, partsMaxStr]) {
+    if (!mintStr || !montantStr || !partsMaxStr) {
+      throw new Error("usage : rapatrier <mint-actif> <montant> <parts-maximales>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionRetirerJupiterLend(
+      ctx, cle.publicKey, BigInt(montantStr), BigInt(partsMaxStr),
+    );
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      actif: mintStr,
+      montant: montantStr,
+      partsMaximales: partsMaxStr,
+      ...(await soldesDeLaPosition(connection, ctx)),
+      signature,
+    };
+  },
+
   /** Lit l'etat d'un coffre et, si un porteur est donne, son eligibilite. */
   async etat(config, [mintStr, porteurStr]) {
     if (!mintStr) throw new Error("usage : etat <mint-de-l-actif> [porteur]");
@@ -335,6 +535,67 @@ const commandes: Record<
     return sortie;
   },
 };
+
+/**
+ * Contexte des commandes de venue.
+ *
+ * DEUX REFUS Y SONT CONCENTRES plutot que repetes dans chaque commande. Le
+ * premier porte sur le cluster : les identifiants de la venue codes dans le
+ * client sont ceux de DEVNET, et une adresse de programme est propre a son
+ * reseau. Les employer sur le mainnet viserait des comptes qui n'y sont pas, ou
+ * pire, qui y sont et appartiennent a quelqu'un d'autre. Le second porte sur le
+ * programme de jeton de l'actif, LU sur la chaine et non suppose.
+ */
+async function contexteAllocateur(
+  config: Config,
+  connection: Connection,
+  provider: ReturnType<typeof contexte>["provider"],
+  mintStr: string,
+): Promise<AllocatorContext> {
+  if (config.estMainnet) {
+    throw new Error(
+      "les identifiants de la venue portes par le client sont ceux de DEVNET : " +
+        "sur Solana une adresse de programme est propre a son reseau, et rien " +
+        "ici ne connait ceux du mainnet.",
+    );
+  }
+  const actif = new PublicKey(mintStr);
+  const compteMint = await connection.getAccountInfo(actif);
+  if (!compteMint) throw new Error(`mint introuvable sur ce reseau : ${mintStr}`);
+
+  const coffre = adressesDuCoffre({
+    program: vaultProgram(config.vaultProgramId, provider),
+    depositMint: actif,
+    depositTokenProgram: compteMint.owner,
+  }).vault;
+
+  return {
+    program: allocatorProgram(exigeAllocateur(config), provider),
+    programmes: PROGRAMMES_JUPITER_LEND_DEVNET,
+    actif,
+    programmeDeJeton: compteMint.owner,
+    coffre,
+  };
+}
+
+/** Photo des deux soldes de la position, apres un mouvement de venue. */
+async function soldesDeLaPosition(
+  connection: Connection,
+  ctx: AllocatorContext,
+): Promise<{ position: string; soldes: Record<string, string> }> {
+  const a = adressesDeLAllocateur(ctx);
+  return {
+    position: a.position.toBase58(),
+    soldes: {
+      actifDeLaPosition: await lireSolde(
+        connection, a.actifDeLaPosition, ctx.programmeDeJeton,
+      ),
+      recuDeLaPosition: await lireSolde(
+        connection, a.recuDeLaPosition, ctx.programmeDeJeton,
+      ),
+    },
+  };
+}
 
 /** Solde d'un compte de jeton. Un compte absent vaut zero, pas une erreur. */
 async function lireSolde(

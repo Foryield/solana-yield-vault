@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.8 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Il ne manque plus qu'un déploiement et deux transactions pour clore S4 |
 | 2.7 | 2026-08-04 | Câblage de l'étape 1 écrit : dépôt et retrait Jupiter Lend bornés des deux côtés. Il ne manque que le chemin d'exploitation et la preuve devnet |
 | 2.6 | 2026-08-03 | Autorité de signature de l'allocateur tranchée : une par position |
 | 2.5 | 2026-08-02 | Allocateur : les trois pièces pures de l'étape 1 sont écrites et couvertes, il ne reste que le câblage |
@@ -105,11 +106,19 @@ deviné pour autant : le plafond du retrait vient de l'appelant, et l'horodatage
 de rafraîchissement est journalisé plutôt qu'exigé. Les deux sont des dettes
 nommées, à solder à l'étape 2 sur une mesure.
 
-**Ce qui manque pour clore l'étape 1, et donc S4** : le chemin d'exploitation.
-Dériver hors chaîne les comptes de la venue, créer le compte de réclamation
-avant le premier retrait, approvisionner les comptes de jeton de la position.
-Puis les deux signatures devnet, consignées sous `docs/evidence/`. **Rien de ce
-qui est écrit n'a encore touché un réseau.**
+**Le chemin d'exploitation est écrit le 04/08 et éprouvé en lecture contre
+devnet.** Le client dérive les adresses des deux côtés, la ligne de commande
+porte cinq gestes nouveaux (`venue` pour inspecter sans rien signer, puis
+`preparer`, `approvisionner`, `placer`, `rapatrier`), et les trois identifiants
+de programme de la venue ont été **lus sur la chaîne** plutôt que recopiés du
+paquet, qui ne connaît que le mainnet. Les dix comptes de la venue existent
+tous, compte de réclamation compris : le préalable que le plan annonçait
+bloquant est levé. Relevé et méthode dans
+[`allocator.md`](../evidence/allocator.md).
+
+**Ce qui manque pour clore l'étape 1, et donc S4** : déployer l'allocateur sur
+devnet, doter la position, puis signer un dépôt et un retrait. **Aucun binaire
+ne répond encore à l'adresse de l'allocateur.**
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un
