@@ -45,6 +45,12 @@ pub enum AllocatorError {
     PositionVide,
     #[msg("Le rachat integral a laisse des jetons de recu derriere lui")]
     RachatIncomplet,
+    #[msg("Tolerance aberrante : au-dela du plafond, une borne ne borne plus rien")]
+    ToleranceAberrante,
+    #[msg("Le marche n'a pas ete rafraichi dans cette transaction")]
+    MarchePerime,
+    #[msg("La position detient encore une exposition : la fermer la rendrait orpheline")]
+    PositionNonSortie,
     #[msg("Le marche presente n'est pas celui que la position a fige a son ouverture")]
     MarcheDeLaPositionEtranger,
 }

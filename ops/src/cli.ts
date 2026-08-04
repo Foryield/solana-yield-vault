@@ -32,6 +32,8 @@ import {
   instructionInitialiserAllocateur,
   instructionOuvrirPosition,
   instructionReglerPlafond,
+  instructionReglerTolerance,
+  instructionFermerPosition,
   instructionSuspendre,
   lirePosition,
   adressesDuCoffre,
@@ -405,11 +407,15 @@ const commandes: Record<
   },
 
   /** Ouvre une position sur un actif, avec son plafond de valorisation. */
-  async ouvrir(config, [mintStr, plafondStr]) {
-    if (!mintStr || !plafondStr) throw new Error("usage : ouvrir <mint-actif> <plafond>");
+  async ouvrir(config, [mintStr, plafondStr, toleranceStr]) {
+    if (!mintStr || !plafondStr || !toleranceStr) {
+      throw new Error("usage : ouvrir <mint-actif> <plafond> <tolerance-bps>");
+    }
     const { connection, cle, provider } = contexte(config);
     const ctx = await contexteAllocateur(config, connection, provider, mintStr);
-    const ix = await instructionOuvrirPosition(ctx, cle.publicKey, BigInt(plafondStr));
+    const ix = await instructionOuvrirPosition(
+      ctx, cle.publicKey, BigInt(plafondStr), Number(toleranceStr),
+    );
     const signature = await envoyer(connection, cle, [ix]);
     return { actif: mintStr, plafond: plafondStr, ...(await etatDeLaPosition(ctx)), signature };
   },
@@ -428,6 +434,39 @@ const commandes: Record<
     return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
   },
 
+  /**
+   * Regle la tolerance des bornes de sortie, en dix-milliemes.
+   *
+   * C'est l'ecart accepte entre l'arithmetique de la venue et la notre. La
+   * poser a zero rend les bornes exactes, donc fragiles au moindre changement
+   * d'arrondi chez le tiers ; le programme borne l'autre extremite.
+   */
+  async tolerer(config, [mintStr, bpsStr]) {
+    if (!mintStr || !bpsStr) throw new Error("usage : tolerer <mint-actif> <bps>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionReglerTolerance(ctx, cle.publicKey, Number(bpsStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * Ferme une position sortie et rend son depot de non-expiration.
+   *
+   * SERT AUSSI DE CHEMIN DE MIGRATION : ajouter un champ a une position change
+   * sa taille, et un compte deja alloue ne grandit pas tout seul. Fermer puis
+   * rouvrir est le chemin le plus court, et sans risque des lors qu'elle est
+   * sortie de la venue.
+   */
+  async fermer(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : fermer <mint-actif>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionFermerPosition(ctx, cle.publicKey);
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, signature };
+  },
+
   /** Suspend ou reprend la position. Ne bloque que les depots, jamais les sorties. */
   async geler(config, [mintStr, etatStr]) {
     if (!mintStr || (etatStr !== "oui" && etatStr !== "non")) {
@@ -443,21 +482,19 @@ const commandes: Record<
   /**
    * CHEMIN D'URGENCE : sort l'integralite de la position de la venue.
    *
-   * Aucun montant n'est demande, seulement le minimum a recevoir : sortir ne
-   * doit pas exiger de valoriser d'abord. Poser zero signifie « sortir a tout
-   * prix », ce qui est une decision d'operateur assumee et non un defaut.
+   * AUCUN ARGUMENT. Ni montant, la position sort en entier ; ni borne, elle est
+   * calculee sur la chaine depuis la valorisation du solde et minoree de la
+   * tolerance de la position. C'est ce qui le rend utilisable sous incident, ou
+   * l'on ne veut ni valoriser d'abord ni se tromper de chiffre.
    */
-  async evacuer(config, [mintStr, minimumStr]) {
-    if (!mintStr || !minimumStr) {
-      throw new Error("usage : evacuer <mint-actif> <actif-minimal>");
-    }
+  async evacuer(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : evacuer <mint-actif>");
     const { connection, cle, provider } = contexte(config);
     const ctx = await contexteAllocateur(config, connection, provider, mintStr);
-    const ix = await instructionRacheterTout(ctx, cle.publicKey, BigInt(minimumStr));
+    const ix = await instructionRacheterTout(ctx, cle.publicKey);
     const signature = await envoyer(connection, cle, [ix]);
     return {
       actif: mintStr,
-      actifMinimal: minimumStr,
       ...(await soldesDeLaPosition(connection, ctx)),
       signature,
     };
@@ -559,20 +596,17 @@ const commandes: Record<
    * qu'il observe, et le programme verifie de son cote que l'actif demande est
    * bien arrive.
    */
-  async rapatrier(config, [mintStr, montantStr, partsMaxStr]) {
-    if (!mintStr || !montantStr || !partsMaxStr) {
-      throw new Error("usage : rapatrier <mint-actif> <montant> <parts-maximales>");
+  async rapatrier(config, [mintStr, montantStr]) {
+    if (!mintStr || !montantStr) {
+      throw new Error("usage : rapatrier <mint-actif> <montant>");
     }
     const { connection, cle, provider } = contexte(config);
     const ctx = await contexteAllocateur(config, connection, provider, mintStr);
-    const ix = await instructionRetirerJupiterLend(
-      ctx, cle.publicKey, BigInt(montantStr), BigInt(partsMaxStr),
-    );
+    const ix = await instructionRetirerJupiterLend(ctx, cle.publicKey, BigInt(montantStr));
     const signature = await envoyer(connection, cle, [ix]);
     return {
       actif: mintStr,
       montant: montantStr,
-      partsMaximales: partsMaxStr,
       ...(await soldesDeLaPosition(connection, ctx)),
       signature,
     };
@@ -668,6 +702,7 @@ async function etatDeLaPosition(
     position: etat
       ? {
           plafond: etat.plafond.toString(),
+          toleranceBps: etat.toleranceBps,
           suspendue: etat.suspendue,
           actif: etat.actif.toBase58(),
           jetonDeRecu: etat.jetonDeRecu.toBase58(),

@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.9 | 2026-08-04 | **Les deux dettes soldées.** Conversion inverse mesurée sur cinq mouvements réels, toutes les bornes passent sur la chaîne avec une tolérance gouvernée, horodatage exigé. Un geste de fermeture ajouté, qui sert de chemin de migration |
 | 1.8 | 2026-08-04 | **Étape 2 LIVRÉE et éprouvée sur devnet.** Autorité, plafond sur la valorisation, suspension et rachat intégral : les deux refus provoqués exprès |
 | 1.7 | 2026-08-04 | Conception de l'étape 2 arrêtée : configuration propre à l'allocateur, plafond sur la valorisation, suspension et retrait intégral libellé en parts. L'étape 1 avait laissé l'opérateur non contraint, c'est le premier point traité |
 | 1.6 | 2026-08-04 | **Étape 1 CLOSE, S4 clos.** Dépôt et retrait signés sur devnet. Trois mesures rapportées : l'horodatage tombe sur l'horloge, la venue applique la formule simplifiée et non la conversion en deux temps, le signataire d'une CPI doit être déclaré en écriture |

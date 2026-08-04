@@ -148,14 +148,13 @@ pub fn handle_deposer_jupiter_lend(ctx: Context<DeposerJupiterLend>, actif: u64)
         lending::lire_marche(&donnees).map_err(|e| error!(AllocatorError::from(e)))?
     };
 
-    // L'HORODATAGE EST JOURNALISE, PAS ENCORE EXIGE. Mesure le 04/08 sur
-    // devnet : il tombe exactement sur l'horloge de la transaction. Le durcir
-    // est desormais possible et reste a faire, sur un echantillon plutot que
-    // sur une transaction.
-    msg!(
-        "marche rafraichi a {}, horloge {}",
-        marche.dernier_rafraichissement,
-        Clock::get()?.unix_timestamp
+    // L'HORODATAGE EST DESORMAIS EXIGE, plus seulement journalise : la mesure
+    // du 04/08 a montre qu'il tombe exactement sur l'horloge de la transaction.
+    // La regle vit dans le module pur, ou elle est testable ; ici on ne fait que
+    // lui donner l'horloge.
+    require!(
+        lending::est_frais(&marche, Clock::get()?.unix_timestamp),
+        AllocatorError::MarchePerime
     );
 
     // Tout le calcul vit dans le module pur, comme dans le coffre : le

@@ -11,6 +11,17 @@ use anchor_lang::prelude::*;
 /// Graine de la configuration. Un seul compte pour tout le programme.
 pub const CONFIGURATION_SEED: &[u8] = b"configuration";
 
+/// Tolerance maximale admise sur les bornes de sortie, en dix-milliemes : 1 %.
+///
+/// BORNEE PAR LE PROGRAMME et non laissee au seul jugement de l'administrateur.
+/// Une tolerance libre permettrait d'en poser une si large qu'elle reviendrait a
+/// n'avoir aucune borne, ce qui ne serait pas un reglage mais une desactivation
+/// silencieuse. La valeur est basse a dessein : ce qu'on absorbe ici est une
+/// derive d'ARRONDI chez un tiers, et un arrondi se compte en unites, jamais en
+/// pourcents. Sur les montants mesures le 04/08, 1 % represente environ dix
+/// mille fois l'ecart observe.
+pub const TOLERANCE_MAXIMALE_BPS: u16 = 100;
+
 /// Graine de l'autorite de position, completee par la cle du coffre puis celle
 /// du marche.
 ///
@@ -69,6 +80,19 @@ pub struct Position {
     /// force rien a sortir : un plafond dit ce qu'on accepte d'exposer de plus,
     /// il n'ordonne pas de liquider.
     pub plafond: u64,
+    /// TOLERANCE DES BORNES DE SORTIE, en dix-milliemes.
+    ///
+    /// Les bornes des sorties sont calculees sur la chaine depuis la conversion
+    /// de la venue, MESUREE le 04/08 sur deux retraits reels. Les poser
+    /// exactement reproduirait la faute que ce dessin reproche a l'egalite
+    /// stricte : un changement d'arrondi chez un tiers deviendrait une panne
+    /// totale de nos sorties, alors que rien n'aurait ete vole.
+    ///
+    /// Cette tolerance est donc l'ecart qu'on accepte entre leur arithmetique et
+    /// la notre. Elle est GOUVERNEE et non codee en dur, au meme titre que le
+    /// plafond : c'est une decision visible et revisable, pas une constante
+    /// oubliee dans un fichier.
+    pub tolerance_bps: u16,
     /// Coupe-circuit de la position. Suspendre bloque les nouveaux depots sans
     /// rien deplacer ; retraits et retrait integral restent ouverts, sans quoi
     /// la suspension enfermerait les fonds au lieu de les proteger.

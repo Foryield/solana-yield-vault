@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 3.1 | 2026-08-04 | **Les deux dettes de l'allocateur soldées** : bornes de sortie calculées sur la chaîne, horodatage exigé. Reste l'étape 3, et l'étape 4 qui suppose une seconde venue |
 | 3.0 | 2026-08-04 | **Étape 2 de l'allocateur livrée** : autorité, plafond sur la valorisation, suspension, rachat intégral d'urgence. Éprouvée sur devnet, refus compris |
 | 2.9 | 2026-08-04 | **S4 CLOS.** Dépôt et retrait Jupiter Lend signés sur devnet depuis l'allocateur. L'étape 1 est close, il reste les étapes 2 à 4 |
 | 2.8 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Il ne manque plus qu'un déploiement et deux transactions pour clore S4 |
@@ -107,10 +108,9 @@ que d'exposer tout l'actif du coffre. Argumentée dans le plan.
 **Une relecture de l'IDL le 04/08 a trouvé ce que celle du 02/08 avait manqué :**
 l'éditeur expose `depositWithMinAmountOut` et `withdrawWithMaxSharesBurn`, mêmes
 comptes et mêmes droits, un argument de plus. Le plancher est donc appliqué des
-deux côtés, par la venue et par nous. Ce qui n'a pas pu être mesuré n'est pas
-deviné pour autant : le plafond du retrait vient de l'appelant, et l'horodatage
-de rafraîchissement est journalisé plutôt qu'exigé. Les deux sont des dettes
-nommées, à solder à l'étape 2 sur une mesure.
+deux côtés, par la venue et par nous. Ce qui n'avait pas pu être mesuré n'a pas
+été deviné pour autant, et est resté ouvert sous forme de dettes nommées jusqu'à
+ce qu'une mesure les solde le jour même.
 
 **Le chemin d'exploitation est écrit le 04/08 et éprouvé en lecture contre
 devnet.** Le client dérive les adresses des deux côtés, la ligne de commande
@@ -145,10 +145,16 @@ Cette étape a d'abord fermé un trou que l'étape 1 avait laissé : `operateur`
 mouvement. Aucun vol n'était possible, les comptes de jeton étant liés à la
 position, mais un tiers décidait quand les fonds bougeaient.
 
-**Ce qui reste du chantier** : les étapes 3 et 4, schéma d'événements et
-réallocation. Plus deux dettes nommées à solder sur une mesure : la borne des
-sorties, encore fournie par l'appelant, et l'horodatage, encore journalisé
-plutôt qu'exigé alors qu'il est désormais mesuré.
+**Les deux dettes sont soldées le 04/08.** La conversion inverse de la venue a
+été établie sans dépenser une transaction de plus, en relisant le prix exact de
+chacun des cinq mouvements dans son propre événement de taux. Toutes les bornes
+sont désormais calculées sur la chaîne, écartées d'une tolérance gouvernée
+plutôt que posées exactes, et l'horodatage de rafraîchissement est exigé.
+
+**Ce qui reste du chantier** : l'étape 3, le schéma d'événements. Et l'étape 4,
+la réallocation entre venues, qui **suppose une seconde venue** : il n'existe
+qu'un adaptateur, Jupiter Lend, donc il n'y a aujourd'hui rien entre quoi
+réallouer. C'est un préalable de conception, pas un reste de travail.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un

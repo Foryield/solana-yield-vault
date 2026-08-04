@@ -28,7 +28,7 @@
 use crate::{
     error::AllocatorError,
     state::*,
-    venues::jupiter_lend::{cpi, lending},
+    venues::jupiter_lend::{cpi, lending, math},
 };
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::{invoke, invoke_signed};
@@ -206,12 +206,24 @@ impl<'info> SortirDeJupiterLend<'info> {
     }
 }
 
-pub fn handle_retirer_jupiter_lend(
-    ctx: Context<SortirDeJupiterLend>,
-    actif: u64,
-    parts_maximales: u64,
-) -> Result<()> {
-    ctx.accounts.rafraichir_et_lire()?;
+pub fn handle_retirer_jupiter_lend(ctx: Context<SortirDeJupiterLend>, actif: u64) -> Result<()> {
+    let marche = ctx.accounts.rafraichir_et_lire()?;
+    require!(
+        lending::est_frais(&marche, Clock::get()?.unix_timestamp),
+        AllocatorError::MarchePerime
+    );
+
+    // LE PLAFOND EST CALCULE ICI, PLUS FOURNI PAR L'APPELANT. C'etait une dette
+    // nommee de l'etape 1 : la conversion inverse n'avait jamais ete mesuree, et
+    // l'inventer aurait fait echouer tous les retraits. Elle l'a ete le 04/08
+    // sur deux retraits reels, ce qui autorise a la rapatrier sur la chaine.
+    //
+    // La tolerance evite d'en refaire une egalite stricte : c'est leur arrondi,
+    // pas le notre.
+    let attendues = math::parts_a_bruler_pour_retrait(actif, marche.prix_jeton)
+        .map_err(|e| error!(AllocatorError::from(e)))?;
+    let parts_maximales = math::majorer(attendues, ctx.accounts.position.tolerance_bps)
+        .map_err(|e| error!(AllocatorError::from(e)))?;
 
     let actif_avant = ctx.accounts.actif_de_la_position.amount;
     let recu_avant = ctx.accounts.recu_de_la_position.amount;
@@ -265,12 +277,22 @@ pub fn handle_retirer_jupiter_lend(
 /// serait inventee echouerait le jour ou il sert ; poser zero est possible et
 /// signifie « sortir a tout prix », ce qui reste une decision de l'operateur et
 /// non un defaut de ce programme.
-pub fn handle_racheter_tout(ctx: Context<SortirDeJupiterLend>, actif_minimal: u64) -> Result<()> {
-    ctx.accounts.rafraichir_et_lire()?;
+pub fn handle_racheter_tout(ctx: Context<SortirDeJupiterLend>) -> Result<()> {
+    let marche = ctx.accounts.rafraichir_et_lire()?;
+    require!(
+        lending::est_frais(&marche, Clock::get()?.unix_timestamp),
+        AllocatorError::MarchePerime
+    );
 
     let actif_avant = ctx.accounts.actif_de_la_position.amount;
     let parts = ctx.accounts.recu_de_la_position.amount;
     require!(parts > 0, AllocatorError::PositionVide);
+
+    // MEME RAPATRIEMENT QUE POUR LE RETRAIT. Le plancher est la valorisation du
+    // solde entier, minoree de la tolerance gouvernee.
+    let attendu = math::valeur_en_actif(parts, marche.prix_jeton)
+        .map_err(|e| error!(AllocatorError::from(e)))?;
+    let actif_minimal = math::minorer(attendu, ctx.accounts.position.tolerance_bps);
 
     let rachat = cpi::instruction_rachat(
         ctx.accounts.programme_de_pret.key(),

@@ -125,10 +125,11 @@ export async function instructionOuvrirPosition(
   ctx: AllocatorContext,
   admin: PublicKey,
   plafond: bigint,
+  toleranceBps: number,
 ): Promise<TransactionInstruction> {
   const a = adressesDeLAllocateur(ctx);
   return ctx.program.methods
-    .ouvrirPosition(new BN(plafond.toString()))
+    .ouvrirPosition(new BN(plafond.toString()), toleranceBps)
     .accountsPartial({
       admin,
       configuration: a.configuration,
@@ -153,6 +154,48 @@ export async function instructionReglerPlafond(
     .instruction();
 }
 
+/**
+ * Regle la tolerance des bornes de sortie, en dix-milliemes.
+ *
+ * C'est l'ecart qu'on accepte entre l'arithmetique de la venue et la notre. Le
+ * programme la borne : au-dela, une borne ne bornerait plus rien.
+ */
+export async function instructionReglerTolerance(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+  toleranceBps: number,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .reglerTolerance(toleranceBps)
+    .accountsPartial({ admin, configuration: a.configuration, position: a.position })
+    .instruction();
+}
+
+/**
+ * Ferme une position sortie et rend son depot de non-expiration.
+ *
+ * Le compte de jeton de recu est exige : le programme verifie qu'il est VIDE.
+ * Fermer une position qui detient encore une exposition la rendrait orpheline.
+ */
+export async function instructionFermerPosition(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .fermerPosition()
+    .accountsPartial({
+      admin,
+      configuration: a.configuration,
+      coffre: ctx.coffre,
+      marche: a.venue.marche,
+      position: a.position,
+      recuDeLaPosition: a.recuDeLaPosition,
+    })
+    .instruction();
+}
+
 /** Suspend ou reprend la position. Ne bloque que les depots. */
 export async function instructionSuspendre(
   ctx: AllocatorContext,
@@ -173,6 +216,7 @@ export interface EtatDeLaPosition {
   actif: PublicKey;
   jetonDeRecu: PublicKey;
   plafond: BN;
+  toleranceBps: number;
   suspendue: boolean;
 }
 
@@ -238,11 +282,10 @@ export async function instructionRetirerJupiterLend(
   ctx: AllocatorContext,
   admin: PublicKey,
   montant: bigint,
-  partsMaximales: bigint,
 ): Promise<TransactionInstruction> {
   const a = adressesDeLAllocateur(ctx);
   return ctx.program.methods
-    .retirerJupiterLend(new BN(montant.toString()), new BN(partsMaximales.toString()))
+    .retirerJupiterLend(new BN(montant.toString()))
     .accountsPartial({
       admin,
       configuration: a.configuration,
@@ -280,11 +323,10 @@ export async function instructionRetirerJupiterLend(
 export async function instructionRacheterTout(
   ctx: AllocatorContext,
   admin: PublicKey,
-  actifMinimal: bigint,
 ): Promise<TransactionInstruction> {
   const a = adressesDeLAllocateur(ctx);
   return ctx.program.methods
-    .racheterTout(new BN(actifMinimal.toString()))
+    .racheterTout()
     .accountsPartial({
       admin,
       configuration: a.configuration,

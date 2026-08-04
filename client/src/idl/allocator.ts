@@ -201,6 +201,114 @@ export type Allocator = {
       ]
     },
     {
+      "name": "fermerPosition",
+      "docs": [
+        "Ferme une position vide et rend son depot de non-expiration.",
+        "",
+        "Sert aussi de chemin de migration : une position ecrite par une version",
+        "anterieure du programme ne se relit pas par la suivante si sa",
+        "disposition a change. Fermer puis rouvrir est alors le chemin le plus",
+        "court, et il est sans risque des lors que la position est sortie."
+      ],
+      "discriminator": [
+        83,
+        9,
+        67,
+        213,
+        146,
+        0,
+        95,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "coffre"
+        },
+        {
+          "name": "marche"
+        },
+        {
+          "name": "position",
+          "docs": [
+            "LA POSITION N'EST PAS DESERIALISEE ICI, et c'est tout l'objet de ce",
+            "geste. Une position ecrite par une version anterieure du programme ne se",
+            "relit pas par la suivante des lors que sa disposition a change : la lire",
+            "pour la fermer rendrait la fermeture impossible exactement dans le cas ou",
+            "elle sert. Les graines suffisent a garantir qu'il s'agit bien d'elle.",
+            "volontairement ignore."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "coffre"
+              },
+              {
+                "kind": "account",
+                "path": "marche"
+              }
+            ]
+          }
+        },
+        {
+          "name": "recuDeLaPosition",
+          "docs": [
+            "Jetons de recu de la position. LU POUR EXIGER QU'ELLE SOIT SORTIE :",
+            "fermer la gouvernance d'une position qui detient encore une exposition la",
+            "rendrait orpheline, gerable par personne."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialiser",
       "docs": [
         "Fige l'administrateur de l'allocateur. Appelable une seule fois."
@@ -352,17 +460,22 @@ export type Allocator = {
         {
           "name": "plafond",
           "type": "u64"
+        },
+        {
+          "name": "toleranceBps",
+          "type": "u16"
         }
       ]
     },
     {
       "name": "racheterTout",
       "docs": [
-        "CHEMIN D'URGENCE. Brule l'integralite du solde de jetons de recu contre",
-        "au moins `actif_minimal` unites.",
+        "CHEMIN D'URGENCE. Brule l'integralite du solde de jetons de recu.",
         "",
-        "Libelle en parts et non en actif, ce qui permet de sortir sans avoir a",
-        "valoriser d'abord. Reste ouvert quand la position est suspendue : une",
+        "Aucun argument : ni montant, la position sort en entier, ni borne, elle",
+        "est calculee sur la chaine depuis la valorisation du solde. C'est ce qui",
+        "le rend utilisable sous incident, ou l'on ne veut ni valoriser d'abord ni",
+        "se tromper de chiffre. Reste ouvert quand la position est suspendue : une",
         "suspension protege des depots, elle n'enferme pas les fonds."
       ],
       "discriminator": [
@@ -527,12 +640,7 @@ export type Allocator = {
           "name": "programmeSysteme"
         }
       ],
-      "args": [
-        {
-          "name": "actifMinimal",
-          "type": "u64"
-        }
-      ]
+      "args": []
     },
     {
       "name": "reglerPlafond",
@@ -622,15 +730,101 @@ export type Allocator = {
       ]
     },
     {
+      "name": "reglerTolerance",
+      "docs": [
+        "Regle la tolerance des bornes de sortie, en dix-milliemes."
+      ],
+      "discriminator": [
+        252,
+        232,
+        64,
+        23,
+        189,
+        254,
+        197,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "configuration"
+          ]
+        },
+        {
+          "name": "configuration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  117,
+                  114,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "position.coffre",
+                "account": "position"
+              },
+              {
+                "kind": "account",
+                "path": "position.marche",
+                "account": "position"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "toleranceBps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "retirerJupiterLend",
       "docs": [
-        "Retire `actif` unites de Jupiter Lend en brulant au plus",
-        "`parts_maximales` jetons de recu.",
+        "Retire `actif` unites de Jupiter Lend.",
         "",
-        "Le plafond, LUI, est un argument, et l'asymetrie avec le depot est",
-        "argumentee dans l'en-tete du gestionnaire : la conversion inverse n'a",
-        "jamais ete mesuree, et une borne deduite plutot que mesuree ferait",
-        "echouer tous les retraits."
+        "AUCUNE BORNE N'EST PASSEE : depuis que la conversion inverse a ete",
+        "mesuree, le 04/08 sur deux retraits reels, le plafond de parts est",
+        "calcule sur la chaine et majore de la tolerance de la position. C'etait",
+        "une dette nommee de l'etape 1, elle est soldee."
       ],
       "discriminator": [
         159,
@@ -797,10 +991,6 @@ export type Allocator = {
       "args": [
         {
           "name": "actif",
-          "type": "u64"
-        },
-        {
-          "name": "partsMaximales",
           "type": "u64"
         }
       ]
@@ -1004,6 +1194,21 @@ export type Allocator = {
     },
     {
       "code": 6016,
+      "name": "toleranceAberrante",
+      "msg": "Tolerance aberrante : au-dela du plafond, une borne ne borne plus rien"
+    },
+    {
+      "code": 6017,
+      "name": "marchePerime",
+      "msg": "Le marche n'a pas ete rafraichi dans cette transaction"
+    },
+    {
+      "code": 6018,
+      "name": "positionNonSortie",
+      "msg": "La position detient encore une exposition : la fermer la rendrait orpheline"
+    },
+    {
+      "code": 6019,
       "name": "marcheDeLaPositionEtranger",
       "msg": "Le marche presente n'est pas celui que la position a fige a son ouverture"
     }
@@ -1098,6 +1303,24 @@ export type Allocator = {
               "il n'ordonne pas de liquider."
             ],
             "type": "u64"
+          },
+          {
+            "name": "toleranceBps",
+            "docs": [
+              "TOLERANCE DES BORNES DE SORTIE, en dix-milliemes.",
+              "",
+              "Les bornes des sorties sont calculees sur la chaine depuis la conversion",
+              "de la venue, MESUREE le 04/08 sur deux retraits reels. Les poser",
+              "exactement reproduirait la faute que ce dessin reproche a l'egalite",
+              "stricte : un changement d'arrondi chez un tiers deviendrait une panne",
+              "totale de nos sorties, alors que rien n'aurait ete vole.",
+              "",
+              "Cette tolerance est donc l'ecart qu'on accepte entre leur arithmetique et",
+              "la notre. Elle est GOUVERNEE et non codee en dur, au meme titre que le",
+              "plafond : c'est une decision visible et revisable, pas une constante",
+              "oubliee dans un fichier."
+            ],
+            "type": "u16"
           },
           {
             "name": "suspendue",
