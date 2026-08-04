@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.0 | 2026-08-04 | Section de reprise écrite pour les étapes 3 et 4 : état d'exploitation, pièges déjà payés, ce qui est tranché et ce qui reste à trancher. L'étape 4 est bloquée sur le choix d'une seconde venue |
 | 1.9 | 2026-08-04 | **Les deux dettes soldées.** Conversion inverse mesurée sur cinq mouvements réels, toutes les bornes passent sur la chaîne avec une tolérance gouvernée, horodatage exigé. Un geste de fermeture ajouté, qui sert de chemin de migration |
 | 1.8 | 2026-08-04 | **Étape 2 LIVRÉE et éprouvée sur devnet.** Autorité, plafond sur la valorisation, suspension et rachat intégral : les deux refus provoqués exprès |
 | 1.7 | 2026-08-04 | Conception de l'étape 2 arrêtée : configuration propre à l'allocateur, plafond sur la valorisation, suspension et retrait intégral libellé en parts. L'étape 1 avait laissé l'opérateur non contraint, c'est le premier point traité |
@@ -106,8 +107,12 @@ plancher a absorbé l'erreur au lieu de la transformer en panne.
 
 Portée de cette mesure, dite honnêtement : **un montant, un marché, une
 transaction**. Elle ne prouve pas quelle formule tourne chez eux, elle réfute
-l'hypothèse que ce soit la conversion en deux temps. L'étape 2 devra trancher
-sur un échantillon, et pas sur ce seul point.
+l'hypothèse que ce soit la conversion en deux temps.
+
+*Élargi le 04/08 même : cinq mouvements réels confirment le modèle dans les
+trois sens, dépôt, retrait et rachat. La venue arrondit toujours à son avantage,
+plancher sur ce qu'elle donne et plafond sur ce qu'elle prend. Détail dans
+[`allocator.md`](../evidence/allocator.md).*
 
 ## Deux approches pour se protéger d'une invocation croisée
 
@@ -332,6 +337,96 @@ Le montant minimal reste **fourni par l'appelant**, pour la même raison que le
 plafond de parts du retrait ordinaire : la conversion inverse n'est toujours pas
 mesurée. Un chemin d'urgence dont la borne serait inventée échouerait le jour où
 il sert.
+
+## Pour reprendre les étapes 3 et 4, écrit le 04/08
+
+Cette section existe pour qu'une reprise ne recommence pas par redécouvrir ce
+qui est déjà tranché, ni par buter sur ce qui est déjà connu comme bloquant.
+
+### État d'exploitation au 04/08, à relire avant tout
+
+L'allocateur est déployé sur devnet en
+`BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr`, configuration initialisée,
+administrateur `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP`. La position USDC
+est ouverte, plafond 3 USDC, tolérance 10 dix-millièmes, non suspendue, **vide
+de toute exposition**. Son compte d'actif détient 4 999 996 unités, prêtes à
+resservir. Solde d'exploitation 21,04 SOL.
+
+Trois pièges d'exploitation déjà payés, à ne pas repayer. Un redéploiement dont
+le binaire a grossi exige `solana program extend` d'au moins 10 240 octets
+avant `anchor deploy`, sans quoi l'extension est refusée pour un pas trop
+petit. `anchor deploy` échoue systématiquement sur « Failed to initialize IDL »
+alors que **le binaire, lui, est bien déployé** : sans effet ici, le client
+consommant l'IDL commis et non celui de la chaîne. Et tout changement de
+disposition d'une position impose de la fermer puis de la rouvrir, un compte
+alloué ne grandissant pas.
+
+### Étape 3, le schéma d'événements : ce qui est décidé, ce qui ne l'est pas
+
+**Déjà tranché par la conception**, à ne pas rediscuter : émission par
+auto-invocation et non par les journaux, ceux-ci étant tronqués sous charge et
+une piste d'audit ne pouvant pas reposer là-dessus. Quatre familles : dépôt,
+rachat, accroissement de frais, réallocation. Publication en spécification
+versionnée autonome, avec une implémentation de référence rédigée pour un
+protocole sans lien avec ce projet. Convention héritée du routeur Soroban : un
+acteur, des instruments, des montants, et la décision d'exécution rendue lisible
+en portant à la fois la venue demandée et **la venue qui a réellement servi**.
+
+**Ce qui reste à trancher, et qu'il vaut mieux trancher avant d'écrire :**
+
+*Le coût en comptes.* `#[event_cpi]` d'Anchor ajoute **deux comptes à chaque
+instruction** qui émet. Nos mouvements en portent déjà vingt et un ; ce n'est
+pas bloquant, mais cela impose un tour complet client, ligne de commande, IDL et
+redéploiement, exactement comme les deux tours précédents.
+
+*La famille « accroissement de frais » n'a aucun producteur.* Ni le coffre ni
+l'allocateur ne prélèvent de frais aujourd'hui. Elle sera donc **spécifiée sans
+être émise**, ce qui est défendable pour une spécification destinée à être
+publiée, à condition de le dire dans le document plutôt que de laisser croire à
+une couverture complète.
+
+*Où vit la spécification.* Elle est censée être autonome et versionnée, donc pas
+dans ce plan. Un fichier propre sous `docs/`, avec sa table d'historique, et un
+renvoi depuis ici.
+
+*Quel événement pour quel geste.* À décider explicitement : un dépôt sur la
+venue est-il un « dépôt » au sens du schéma, ou une « réallocation » depuis
+l'oisif vers une venue ? Les deux lectures se défendent, et le choix change la
+forme du flux pour un consommateur.
+
+**Vérification attendue** : une preuve devnet montrant qu'un événement se relit
+**depuis les données de la transaction** et non depuis ses journaux. C'est tout
+l'objet de la décision d'auto-invocation ; ne pas le prouver reviendrait à
+l'affirmer.
+
+### Étape 4, la réallocation : bloquée, et pas par du travail restant
+
+**Il n'existe qu'un adaptateur.** Réallouer entre venues suppose au moins deux
+venues ; avec Jupiter Lend seul, il n'y a rien entre quoi réallouer. Ce n'est
+pas un reste de travail, c'est un préalable de conception : **choisir la seconde
+venue est la première décision de l'étape 4**, avant toute ligne de code.
+
+Deux candidates se distinguent, et pour une raison mesurable : l'intégration de
+référence les adresse déjà avec des instructions dédiées, `solend_*` et
+`kamino_*`, au même titre que `juplend_*`. Leur ordre de comptes est donc
+lisible chez elle, comme celui de Jupiter Lend l'a été.
+
+**Le piège du cluster s'appliquera à l'identique.** Les identifiants de
+programme d'une venue sont propres à leur réseau, et les paquets publiés portent
+ceux du mainnet. La méthode qui a marché est écrite dans
+[`allocator.md`](../evidence/allocator.md) : partir d'un compte que la venue
+désigne, et demander à la chaîne qui le possède. Prévoir qu'une venue puisse
+n'être pas déployée sur devnet du tout, comme Jupiter Swap.
+
+**Deux contraintes techniques connues.** Une trentaine de comptes impose une
+table de recherche d'adresses. Et S7, le validateur local forké du mainnet,
+devient le préalable dès que la jambe d'échange entre en jeu, Jupiter Swap
+n'existant pas sur devnet.
+
+**Un prix déjà payé, donc pas à repayer** : la contrainte des dix-sept comptes
+imposait déjà une venue par transaction. Une réallocation traversant deux
+autorités de position coûtera deux transferts au lieu d'un mouvement interne,
+ce que la décision du 03/08 sur l'autorité par position avait déjà acté.
 
 ## Les trois spikes restants, rattachés pour ne pas être oubliés
 

@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 3.2 | 2026-08-04 | Chantier de l'allocateur mis en pause après l'étape 2 : section de reprise écrite dans son plan pour les étapes 3 et 4 |
 | 3.1 | 2026-08-04 | **Les deux dettes de l'allocateur soldées** : bornes de sortie calculées sur la chaîne, horodatage exigé. Reste l'étape 3, et l'étape 4 qui suppose une seconde venue |
 | 3.0 | 2026-08-04 | **Étape 2 de l'allocateur livrée** : autorité, plafond sur la valorisation, suspension, rachat intégral d'urgence. Éprouvée sur devnet, refus compris |
 | 2.9 | 2026-08-04 | **S4 CLOS.** Dépôt et retrait Jupiter Lend signés sur devnet depuis l'allocateur. L'étape 1 est close, il reste les étapes 2 à 4 |
@@ -151,10 +152,15 @@ chacun des cinq mouvements dans son propre événement de taux. Toutes les borne
 sont désormais calculées sur la chaîne, écartées d'une tolérance gouvernée
 plutôt que posées exactes, et l'horodatage de rafraîchissement est exigé.
 
-**Ce qui reste du chantier** : l'étape 3, le schéma d'événements. Et l'étape 4,
-la réallocation entre venues, qui **suppose une seconde venue** : il n'existe
-qu'un adaptateur, Jupiter Lend, donc il n'y a aujourd'hui rien entre quoi
-réallouer. C'est un préalable de conception, pas un reste de travail.
+**Le chantier est mis en pause après l'étape 2, le 04/08.** Ce qui reste, et
+comment le reprendre, est écrit dans la section « Pour reprendre les étapes 3
+et 4 » du plan de l'allocateur : état d'exploitation devnet, pièges déjà payés,
+ce qui est tranché et ce qui reste à trancher.
+
+En deux lignes. L'étape 3, le schéma d'événements, n'est pas bloquée mais
+demande un tour complet, `#[event_cpi]` ajoutant deux comptes à chaque
+instruction. L'étape 4, la réallocation, **est bloquée sur une décision** :
+choisir une seconde venue, faute de quoi il n'y a rien entre quoi réallouer.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un
