@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const ici = dirname(fileURLToPath(import.meta.url));
 const racine = join(ici, "..", "..");
-const programmes = ["yield_vault", "compliance_hook"];
+const programmes = ["yield_vault", "compliance_hook", "allocator"];
 const verifie = process.argv.includes("--check");
 
 let derive = false;

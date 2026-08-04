@@ -24,6 +24,9 @@ export const DEAD_SEED = Buffer.from("dead");
 export const CONFIG_SEED = Buffer.from("config");
 export const ALLOW_SEED = Buffer.from("allow");
 
+/** Graine de l'allocateur. Doit rester identique a `programs/allocator/src/state.rs`. */
+export const POSITION_SEED = Buffer.from("position");
+
 /**
  * Graine imposee par l'interface de hook de transfert, et non choisie par
  * nous : Token-2022 derive lui-meme cette adresse pour trouver la liste de
@@ -75,6 +78,24 @@ export function allowlistEntryAddress(
   return PublicKey.findProgramAddressSync(
     [ALLOW_SEED, mint.toBuffer(), holder.toBuffer()],
     hookProgramId,
+  )[0];
+}
+
+/**
+ * Autorite de signature d'une position de l'allocateur.
+ *
+ * UNE PAR COUPLE COFFRE ET MARCHE, et non une par actif : le defaut d'un
+ * adaptateur reste ainsi borne a sa venue. Decision tranchee le 03/08 et
+ * argumentee dans le plan de l'allocateur.
+ */
+export function positionAddress(
+  allocatorProgramId: PublicKey,
+  vault: PublicKey,
+  marche: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [POSITION_SEED, vault.toBuffer(), marche.toBuffer()],
+    allocatorProgramId,
   )[0];
 }
 

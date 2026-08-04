@@ -135,6 +135,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "proptest",
+ "solana-pubkey 3.0.0",
 ]
 
 [[package]]

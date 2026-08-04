@@ -36,9 +36,13 @@ pub struct RetirerJupiterLend<'info> {
     #[account(mut)]
     pub marche: UncheckedAccount<'info>,
 
+    /// Mutable pour la meme raison qu'au depot : la venue attend son signataire
+    /// en ecriture, et une invocation croisee ne peut pas elever un droit
+    /// qu'elle n'a pas recu.
+    ///
     /// CHECK: aucune donnee lue ; l'adresse est entierement contrainte par ses
     /// graines.
-    #[account(seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
+    #[account(mut, seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
     pub position: UncheckedAccount<'info>,
 
     /// Actif detenu par la position, destination du retrait.

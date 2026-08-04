@@ -401,6 +401,12 @@ qu'une ne dit pas laquelle.
 programme à nous, signatures consignées. La lecture de l'intégration de
 référence de marginfi reste à faire, elle éclairera l'ordre des dix-sept comptes.
 
+> **S4 EST CLOS le 2026-08-04.** Dépôt de 2 USDC et retrait de 1 USDC réussis sur
+> devnet depuis l'allocateur, signant par son autorité de position. Signatures
+> dans [`allocator.md`](../evidence/allocator.md). Le paragraphe ci-dessus décrit
+> l'état au 02/08 et est conservé tel quel : c'est une archive d'enquête, pas un
+> état courant.
+
 ## S5 - Signature et diffusion Solana via DFNS
 
 **Question.** La chaîne complète tient-elle de bout en bout, du provisionnement

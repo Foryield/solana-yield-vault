@@ -35,6 +35,10 @@ anchor-spl = { version = "1.1.2", features = ["token_2022"] }
 # L'arithmetique d'une venue se cherche sur un espace, pas sur des exemples
 # choisis a la main : meme outil et meme motif que le coffre.
 proptest = "1"
+# Confrontation de la derivation d'adresses au client TypeScript, meme motif
+# que le coffre : deux implementations, une divergence invisible a la
+# compilation.
+solana-pubkey = "3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

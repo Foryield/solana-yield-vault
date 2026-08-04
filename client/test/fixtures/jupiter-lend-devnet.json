@@ -1,0 +1,18 @@
+{
+  "_lu": "Releve sur la chaine, aucune adresse derivee. Voir l'en-tete du script.",
+  "rpcUrl": "https://api.devnet.solana.com",
+  "programmes": {
+    "pret": "7tjE28izRUjzmxC1QNXnNwcc4N82CNYCexf3k8mw67s3",
+    "liquidite": "5uDkCoM96pwGYhAUucvCzLfm5UcjVRuxz6gH81RnRBmL",
+    "recompenses": "68LHLkpgjAvo6Lgd9FT6KYEX4FWn1911EohSXxHYMFjc"
+  },
+  "actif": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  "programmeDeJeton": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "comptes": {
+    "marche": "98Uy7eonumvRbhQvP5Jt7B3WjNqpndioMF99xvR7sDVa",
+    "jetonDeRecu": "2Wx1tTo8PkTP95NyKoFNPTtcLnYaSowDkExwbHDKAZQu",
+    "modeleDeRecompenses": "GGtryeuwjcWoG6zg4Xi1vUJN1xRhypms4xt129BKTUxt",
+    "reserves": "644Eh222dNe1V6sSRkYHBcdpxfjtxBBptAJ6mZujRRNo",
+    "positionDeLiquidite": "B5JAZXGKaZfWsUrauprZVNQM7HwXN8AfKVTt25qtDKYV"
+  }
+}
