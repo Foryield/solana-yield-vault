@@ -16,13 +16,20 @@ default = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 anchor-debug = []
 custom-heap = []
 custom-panic = []
 
 [dependencies]
 anchor-lang = "1.1.2"
+# UNIQUEMENT pour lire des soldes de compte de jeton, avant et apres chaque
+# invocation croisee : c'est la ceinture qui ne doit rien a l'arithmetique du
+# tiers. `token_interface` couvre indifferemment SPL et Token-2022, le jeton de
+# recu d'une venue n'etant pas le notre. Meme version que le coffre, deja
+# resolue dans le verrou du plan de travail : aucune dependance nouvelle
+# n'entre dans le depot.
+anchor-spl = { version = "1.1.2", features = ["token_2022"] }
 
 [dev-dependencies]
 # L'arithmetique d'une venue se cherche sur un espace, pas sur des exemples

@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.7 | 2026-08-04 | Câblage de l'étape 1 écrit : dépôt et retrait Jupiter Lend bornés des deux côtés. Il ne manque que le chemin d'exploitation et la preuve devnet |
 | 2.6 | 2026-08-03 | Autorité de signature de l'allocateur tranchée : une par position |
 | 2.5 | 2026-08-02 | Allocateur : les trois pièces pures de l'étape 1 sont écrites et couvertes, il ne reste que le câblage |
 | 2.4 | 2026-08-02 | Plan de l'allocateur écrit : trois contraintes trouvées chez l'intégration de référence, les trois spikes rattachés |
@@ -84,16 +85,31 @@ octets réels de devnet et non sur des octets fabriqués. La composition des
 instructions, dont l'ordre des comptes vient de l'IDL et n'est pas partagé entre
 dépôt et retrait. Les trois sont couvertes à 100 %.
 
-**Il ne reste que le câblage** : l'instruction Anchor qui enchaîne
-rafraîchissement, lecture, calcul, invocation, mesure du delta et plancher. Elle
-vivra sous `src/instructions/`, hors du périmètre de couverture, ce qui est
-cohérent puisqu'elle ne fera que du câblage.
+**Le câblage est écrit le 04/08** : `deposer_jupiter_lend` et
+`retirer_jupiter_lend` enchaînent rafraîchissement, lecture, calcul, invocation
+signée par l'autorité de position, puis mesure du delta. Ils vivent sous
+`src/instructions/`, hors du périmètre de couverture, ce qui est cohérent
+puisqu'ils ne font que du câblage ; les pièces qu'ils appellent restent à 100 %.
 
-La décision qui l'attendait est **tranchée le 03/08** : une autorité de
+La décision qui l'attendait a été **tranchée le 03/08** : une autorité de
 signature par position, c'est-à-dire par couple actif et venue, graines
 `["position", coffre, marché]`. Motif : un adaptateur parle à un programme tiers
 dont nous ne maîtrisons rien, et son défaut doit rester borné à sa venue plutôt
 que d'exposer tout l'actif du coffre. Argumentée dans le plan.
+
+**Une relecture de l'IDL le 04/08 a trouvé ce que celle du 02/08 avait manqué :**
+l'éditeur expose `depositWithMinAmountOut` et `withdrawWithMaxSharesBurn`, mêmes
+comptes et mêmes droits, un argument de plus. Le plancher est donc appliqué des
+deux côtés, par la venue et par nous. Ce qui n'a pas pu être mesuré n'est pas
+deviné pour autant : le plafond du retrait vient de l'appelant, et l'horodatage
+de rafraîchissement est journalisé plutôt qu'exigé. Les deux sont des dettes
+nommées, à solder à l'étape 2 sur une mesure.
+
+**Ce qui manque pour clore l'étape 1, et donc S4** : le chemin d'exploitation.
+Dériver hors chaîne les comptes de la venue, créer le compte de réclamation
+avant le premier retrait, approvisionner les comptes de jeton de la position.
+Puis les deux signatures devnet, consignées sous `docs/evidence/`. **Rien de ce
+qui est écrit n'a encore touché un réseau.**
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un
