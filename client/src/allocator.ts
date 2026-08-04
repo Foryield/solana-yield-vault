@@ -9,7 +9,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import type { Allocator } from "./programs.js";
-import { positionAddress } from "./addresses.js";
+import { configurationAddress, positionAddress } from "./addresses.js";
 import {
   comptesDeLaVenue,
   type ComptesDeLaVenue,
@@ -87,11 +87,145 @@ export function adressesDeLaPosition(
 /** Tout ce qu'une transaction de l'allocateur met en jeu, derive en une fois. */
 export interface AdressesAllocateur extends ComptesDeLaPosition {
   venue: ComptesDeLaVenue;
+  configuration: PublicKey;
 }
 
 export function adressesDeLAllocateur(ctx: AllocatorContext): AdressesAllocateur {
   const venue = comptesDeLaVenue(ctx.programmes, ctx.actif, ctx.programmeDeJeton);
-  return { venue, ...adressesDeLaPosition(ctx, venue.marche) };
+  return {
+    venue,
+    configuration: configurationAddress(ctx.program.programId),
+    ...adressesDeLaPosition(ctx, venue.marche),
+  };
+}
+
+/** Fige l'administrateur de l'allocateur. Appelable une seule fois. */
+export async function instructionInitialiserAllocateur(
+  program: Program<Allocator>,
+  admin: PublicKey,
+): Promise<TransactionInstruction> {
+  return program.methods
+    .initialiser()
+    .accountsPartial({
+      admin,
+      configuration: configurationAddress(program.programId),
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+}
+
+/**
+ * Ouvre une position sur un couple coffre et marche, avec son plafond.
+ *
+ * L'ACTIF ET LE JETON DE RECU NE SONT PAS PASSES : le programme les lit dans le
+ * marche et les fige. Les fournir ici laisserait une chance de declarer une
+ * position sur un mint qui n'est pas celui du marche.
+ */
+export async function instructionOuvrirPosition(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+  plafond: bigint,
+  toleranceBps: number,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .ouvrirPosition(new BN(plafond.toString()), toleranceBps)
+    .accountsPartial({
+      admin,
+      configuration: a.configuration,
+      coffre: ctx.coffre,
+      marche: a.venue.marche,
+      position: a.position,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+}
+
+/** Regle le plafond de protocole, qui borne la valorisation de la position. */
+export async function instructionReglerPlafond(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+  plafond: bigint,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .reglerPlafond(new BN(plafond.toString()))
+    .accountsPartial({ admin, configuration: a.configuration, position: a.position })
+    .instruction();
+}
+
+/**
+ * Regle la tolerance des bornes de sortie, en dix-milliemes.
+ *
+ * C'est l'ecart qu'on accepte entre l'arithmetique de la venue et la notre. Le
+ * programme la borne : au-dela, une borne ne bornerait plus rien.
+ */
+export async function instructionReglerTolerance(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+  toleranceBps: number,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .reglerTolerance(toleranceBps)
+    .accountsPartial({ admin, configuration: a.configuration, position: a.position })
+    .instruction();
+}
+
+/**
+ * Ferme une position sortie et rend son depot de non-expiration.
+ *
+ * Le compte de jeton de recu est exige : le programme verifie qu'il est VIDE.
+ * Fermer une position qui detient encore une exposition la rendrait orpheline.
+ */
+export async function instructionFermerPosition(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .fermerPosition()
+    .accountsPartial({
+      admin,
+      configuration: a.configuration,
+      coffre: ctx.coffre,
+      marche: a.venue.marche,
+      position: a.position,
+      recuDeLaPosition: a.recuDeLaPosition,
+    })
+    .instruction();
+}
+
+/** Suspend ou reprend la position. Ne bloque que les depots. */
+export async function instructionSuspendre(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+  suspendue: boolean,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .suspendre(suspendue)
+    .accountsPartial({ admin, configuration: a.configuration, position: a.position })
+    .instruction();
+}
+
+/** Etat d'une position, tel que le programme le porte. */
+export interface EtatDeLaPosition {
+  coffre: PublicKey;
+  marche: PublicKey;
+  actif: PublicKey;
+  jetonDeRecu: PublicKey;
+  plafond: BN;
+  toleranceBps: number;
+  suspendue: boolean;
+}
+
+export async function lirePosition(
+  ctx: AllocatorContext,
+): Promise<EtatDeLaPosition | null> {
+  const a = adressesDeLAllocateur(ctx);
+  const compte = await ctx.program.account.position.fetchNullable(a.position);
+  return compte as EtatDeLaPosition | null;
 }
 
 /**
@@ -103,15 +237,15 @@ export function adressesDeLAllocateur(ctx: AllocatorContext): AdressesAllocateur
  */
 export async function instructionDeposerJupiterLend(
   ctx: AllocatorContext,
-  operateur: PublicKey,
+  admin: PublicKey,
   montant: bigint,
 ): Promise<TransactionInstruction> {
   const a = adressesDeLAllocateur(ctx);
   return ctx.program.methods
     .deposerJupiterLend(new BN(montant.toString()))
     .accountsPartial({
-      operateur,
-      coffre: ctx.coffre,
+      admin,
+      configuration: a.configuration,
       marche: a.venue.marche,
       position: a.position,
       actifDeLaPosition: a.actifDeLaPosition,
@@ -146,16 +280,56 @@ export async function instructionDeposerJupiterLend(
  */
 export async function instructionRetirerJupiterLend(
   ctx: AllocatorContext,
-  operateur: PublicKey,
+  admin: PublicKey,
   montant: bigint,
-  partsMaximales: bigint,
 ): Promise<TransactionInstruction> {
   const a = adressesDeLAllocateur(ctx);
   return ctx.program.methods
-    .retirerJupiterLend(new BN(montant.toString()), new BN(partsMaximales.toString()))
+    .retirerJupiterLend(new BN(montant.toString()))
     .accountsPartial({
-      operateur,
-      coffre: ctx.coffre,
+      admin,
+      configuration: a.configuration,
+      marche: a.venue.marche,
+      position: a.position,
+      actifDeLaPosition: a.actifDeLaPosition,
+      recuDeLaPosition: a.recuDeLaPosition,
+      actif: ctx.actif,
+      jetonDeRecu: a.venue.jetonDeRecu,
+      administration: a.venue.administration,
+      reservesDeLiquidite: a.venue.reserves,
+      positionDeLiquidite: a.venue.positionDeLiquidite,
+      modeleDeTaux: a.venue.modeleDeTaux,
+      coffreDeLaVenue: a.venue.coffreDeLaVenue,
+      compteDeReclamation: a.venue.compteDeReclamation,
+      liquidite: a.venue.liquidite,
+      programmeDeLiquidite: ctx.programmes.liquidite,
+      modeleDeRecompenses: a.venue.modeleDeRecompenses,
+      programmeDePret: ctx.programmes.pret,
+      programmeDeJeton: ctx.programmeDeJeton,
+      programmeDeCompteAssocie: ASSOCIATED_TOKEN_PROGRAM_ID,
+      programmeSysteme: SystemProgram.programId,
+    })
+    .instruction();
+}
+
+/**
+ * CHEMIN D'URGENCE : brule l'integralite du solde de jetons de recu.
+ *
+ * Aucun montant n'est passe, et c'est ce qui le rend utilisable sous incident :
+ * sortir ne demande pas de valoriser d'abord. Seul le minimum recu est exige,
+ * pour la meme raison que le plafond du retrait ordinaire. Poser zero signifie
+ * « sortir a tout prix » : c'est une decision d'operateur, pas un defaut.
+ */
+export async function instructionRacheterTout(
+  ctx: AllocatorContext,
+  admin: PublicKey,
+): Promise<TransactionInstruction> {
+  const a = adressesDeLAllocateur(ctx);
+  return ctx.program.methods
+    .racheterTout()
+    .accountsPartial({
+      admin,
+      configuration: a.configuration,
       marche: a.venue.marche,
       position: a.position,
       actifDeLaPosition: a.actifDeLaPosition,

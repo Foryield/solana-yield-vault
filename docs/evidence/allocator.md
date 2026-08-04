@@ -115,6 +115,100 @@ bien les variantes bornées qui tournent, pas les nues. Le dépôt a rendu
 **Coût.** 1,23 SOL de déploiement, 0,000005 SOL par transaction. Solde
 d'exploitation 23,242 → 21,912 SOL, extension du compte de programme comprise.
 
+## 2026-08-04 - L'adaptateur, son plafond et son chemin d'urgence, éprouvés
+
+**Ce que ça prouve** : les gardes de l'étape 2 mordent réellement, et aucune
+n'est un commentaire. Chacune a été mise en échec volontairement.
+
+**Cluster** : Solana **devnet**.
+
+| Élément | Adresse |
+|---|---|
+| Configuration de l'allocateur | `Dd4Fn5nzFXFp35h4t5LmPAb1CyXaEPeMgXWs6Tkq6S8u` |
+| Administrateur | `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP` |
+
+| Geste | Résultat | Signature |
+|---|---|---|
+| Configuration | administrateur figé | [`4g2k6sCA…3KVH`](https://explorer.solana.com/tx/4g2k6sCA5FxHEbJpG3zu9iLxuWTWmKnGq113R5C5Fr2XhoDKNd331K9V7SuB9gZCdHs5UD9H3S5PPLMFfJZh3KVH?cluster=devnet) |
+| Ouverture, plafond 3 USDC | actif et jeton de reçu **lus dans le marché** | [`q29rc4ug…fYxU`](https://explorer.solana.com/tx/q29rc4ugzzcw5Gon3dos8DqnErT76TPz7GAY7VxVqPU1X1co6WXi3wcyUH7Lb5TMk4VXWC3r8abR9Kr5wmtfYxU?cluster=devnet) |
+| Dépôt de 1 USDC | accepté, sous le plafond | [`29eZKcVP…3W8n`](https://explorer.solana.com/tx/29eZKcVPBGj9GE8p2Vk97aBpuYjmaQyCajqhiSKFoiVisewtFeFaK1D8QPCwSWj94ZZtESgoH1VutsoHR7wB3W8n?cluster=devnet) |
+| Retrait pendant suspension | **accepté**, comme voulu | [`5v3LJQtU…yZJ2`](https://explorer.solana.com/tx/5v3LJQtUVAZ71PJ7zPQGvj28wNL8RqFofGiBseD5NXCLtJnj4aUFGao9pR6uXQARUFXndWUhiNBEwmzt4egEyZJ2?cluster=devnet) |
+| **Rachat intégral d'urgence** | position vidée | [`2cF1Ztsc…s6qe`](https://explorer.solana.com/tx/2cF1ZtscsrmCU3md95i41yyVbZ2BkS6cpgTdWkQTtzKZsbXQBFvhkAR3d5vU6n3b2ienXag88dz5nnShgTjMs6qe?cluster=devnet) |
+
+**Les deux refus, provoqués exprès.** Un dépôt de 2 USDC qui aurait porté la
+valorisation à environ 4 USDC pour un plafond de 3 a été rejeté sur
+`PlafondDepasse` (6013), et les soldes sont restés inchangés : la transaction
+étant atomique, le refus annule l'invocation croisée qui l'avait précédé. Un
+dépôt pendant suspension a été rejeté sur `PositionSuspendue` (6010).
+
+**Le rachat intégral se lit dans ses journaux** : `RedeemWithMinAmountOut` puis
+`rachat integral de 1880632 parts contre 1899998 unites`. La valorisation
+calculée hors chaîne avant l'appel annonçait 1 899 998, à l'unité près. Le solde
+de jetons de reçu est tombé à zéro, ce que le programme vérifie lui-même.
+
+**Un risque qui ne s'est pas matérialisé, et qu'il fallait lever.** La position
+porte désormais des données tout en restant le signataire des invocations
+croisées. Rien ne garantissait que la venue accepte comme signataire en écriture
+une adresse dérivée appartenant à un autre programme. Elle l'accepte.
+
+**Coût du parcours.** Sur 5 USDC dotés au départ, la position en retrouve
+4 999 998 après un dépôt de 2, un dépôt de 1, un retrait de 1, un retrait de 0,1
+et un rachat intégral. Deux unités minimales perdues en arrondis sur cinq
+mouvements, soit un dix-millionième.
+
+## 2026-08-04 - La conversion inverse mesurée, les deux dettes soldées
+
+**Ce que ça prouve** : plus aucune borne n'est fournie par un appelant. Toutes
+sont calculées sur la chaîne, et l'horodatage de rafraîchissement est exigé au
+lieu d'être journalisé.
+
+**Méthode, et elle n'a coûté aucune transaction supplémentaire.** Les cinq
+mouvements de la journée portaient déjà la matière : il suffisait de lire le prix
+exact de chaque transaction dans son propre événement de taux. Le dernier
+concorde à l'unité près avec le compte de marché lu ensuite, ce qui identifie
+sans ambiguïté lequel des deux prix de l'événement est celui du jeton de reçu.
+
+| Sens | Formule établie | Échantillons |
+|---|---|---|
+| Dépôt | `plancher(actif × 1e12 / prix_jeton)` | 2 sur 2 ; la conversion en deux temps échoue les deux |
+| Retrait | `plafond(actif × 1e12 / prix_jeton)` | 2 sur 2 |
+| Rachat | `plancher(parts × prix_jeton / 1e12)` | 1 sur 1 |
+
+**La venue arrondit toujours à son avantage** : plancher sur ce qu'elle donne,
+plafond sur ce qu'elle prend. C'est ce qui explique que notre conversion en deux
+temps minore d'une part, et pourquoi elle reste sûre comme plancher.
+
+**Réserve à dire plutôt qu'à taire** : sur les deux retraits, le prix de la
+liquidité donne le même résultat que celui du jeton, les deux étant trop proches
+pour départager. C'est le dépôt qui tranche, lui les distingue.
+
+**Les bornes ne sont pas posées exactes.** Une tolérance gouvernée, en
+dix-millièmes, les écarte : poser la valeur mesurée telle quelle reproduirait la
+faute reprochée à l'égalité stricte, un changement d'arrondi chez un tiers
+devenant une panne totale de nos sorties. Le programme borne cette tolérance à
+1 %, soit environ dix mille fois l'écart observé.
+
+**L'horodatage est désormais exigé, en égalité stricte**, et l'exception est
+argumentée : les bornes comparent une arithmétique, sujette à dérive ; ici on
+vérifie un fait binaire, « le rafraîchissement que nous venons d'invoquer a-t-il
+pris effet ».
+
+| Geste | Résultat | Signature |
+|---|---|---|
+| Tolérance de 200 bps | refusée, `ToleranceAberrante` | — |
+| Fermeture de l'ancienne position | migration réussie | [`4xX1gw6x…M4wd`](https://explorer.solana.com/tx/4xX1gw6xuwXjuk3MZfZCL4w2iR1veAP88ooSkVRm5fbvoNLtY1QztF7ioWzmyKGDCoYZanepnrnW8y8gouKFM4wd?cluster=devnet) |
+| Réouverture, 10 bps | position migrée | [`64RkNXz9…Mymt`](https://explorer.solana.com/tx/64RkNXz9erbpRXL94tBs7jrWGfbY3Rweo8yHaSCm4WYmrHTF7AdmkJy7jzsrYSbfe53fWHpMLohyy5c4CyndMymt?cluster=devnet) |
+| Dépôt de 2 USDC | marché exigé frais | [`fDDxexsm…4ptm`](https://explorer.solana.com/tx/fDDxexsmSzK2SbKfgion2Vn9B9pYexGaMoL6pwod6mUg12GUd4PsUb2W3WCHg54n5W3AXL76jCWDxMXZPsR4ptm?cluster=devnet) |
+| **Retrait sans borne passée** | 989 808 parts, la valeur calculée | [`2mrEHgWX…KzHD`](https://explorer.solana.com/tx/2mrEHgWXES9YRKybw9EHnzHhVijTaSafmkarZht1kavfJ5AgtrVSP5uWQezHbtVje2Y622RyLxfu1rSeK6C7KzHD?cluster=devnet) |
+| **Évacuation sans argument** | position vidée | [`2zRAdx4H…41ii`](https://explorer.solana.com/tx/2zRAdx4HvGbDQ16ziEBTnuyq779Zxb8gKsskwVzd7d2HsSFsrmnRw59MJfmX7RenbS2Mi4yazit7bxLB132Z41ii?cluster=devnet) |
+
+**Une migration qu'il a fallu inventer en chemin.** Ajouter la tolérance à une
+position change sa taille, et un compte déjà alloué ne grandit pas tout seul :
+la position devnet de l'étape 2 est devenue illisible par le nouveau programme.
+D'où un geste de fermeture qui **ne désérialise pas** la position, seules ses
+graines la désignant. Lire une position pour la fermer la rendrait infermable
+exactement dans le cas où la fermeture sert.
+
 ## 2026-08-04 - Trois mesures que seul le réseau pouvait rendre
 
 **L'horodatage de rafraîchissement tombe sur l'horloge de la transaction.**

@@ -37,6 +37,22 @@ pub enum AllocatorError {
     /// lit ce code doit pouvoir se fier a ce qu'il annonce.
     #[msg("Le solde d'un compte de la position a varie dans le sens que l'operation interdit")]
     SoldeIncoherent,
+    #[msg("La position est suspendue : aucun depot n'est accepte")]
+    PositionSuspendue,
+    #[msg("Ce depot porterait la valorisation de la position au-dela de son plafond")]
+    PlafondDepasse,
+    #[msg("La position ne detient aucun jeton de recu : il n'y a rien a racheter")]
+    PositionVide,
+    #[msg("Le rachat integral a laisse des jetons de recu derriere lui")]
+    RachatIncomplet,
+    #[msg("Tolerance aberrante : au-dela du plafond, une borne ne borne plus rien")]
+    ToleranceAberrante,
+    #[msg("Le marche n'a pas ete rafraichi dans cette transaction")]
+    MarchePerime,
+    #[msg("La position detient encore une exposition : la fermer la rendrait orpheline")]
+    PositionNonSortie,
+    #[msg("Le marche presente n'est pas celui que la position a fige a son ouverture")]
+    MarcheDeLaPositionEtranger,
 }
 
 /// Traduit une erreur d'arithmetique de venue. Correspondance totale et

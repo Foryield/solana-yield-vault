@@ -28,6 +28,14 @@ import {
   instructionTransfert,
   instructionDeposerJupiterLend,
   instructionRetirerJupiterLend,
+  instructionRacheterTout,
+  instructionInitialiserAllocateur,
+  instructionOuvrirPosition,
+  instructionReglerPlafond,
+  instructionReglerTolerance,
+  instructionFermerPosition,
+  instructionSuspendre,
+  lirePosition,
   adressesDuCoffre,
   adressesDuHook,
   adressesDeLAllocateur,
@@ -359,8 +367,10 @@ const commandes: Record<
     return {
       actif: mintStr,
       coffre: ctx.coffre.toBase58(),
-      /** Signataire des invocations croisees. Sans donnees a l'etape 1. */
-      position: a.position.toBase58(),
+      /** Signataire des invocations croisees, et porteur de l'etat depuis l'etape 2. */
+      adresseDeLaPosition: a.position.toBase58(),
+      ...(await etatDeLaPosition(ctx)),
+      configuration: a.configuration.toBase58(),
       programmes: {
         pret: ctx.programmes.pret.toBase58(),
         liquidite: ctx.programmes.liquidite.toBase58(),
@@ -379,6 +389,114 @@ const commandes: Record<
           connection, a.recuDeLaPosition, ctx.programmeDeJeton,
         ),
       },
+    };
+  },
+
+  /**
+   * Fige l'administrateur de l'allocateur. UN SEUL APPEL POSSIBLE : le compte
+   * de configuration est cree par cette instruction, donc une seconde tentative
+   * echoue parce qu'il existe deja. C'est ce qui empeche un tiers de
+   * s'attribuer l'administration apres coup.
+   */
+  async configurer(config, []) {
+    const { connection, cle, provider } = contexte(config);
+    const programme = allocatorProgram(exigeAllocateur(config), provider);
+    const ix = await instructionInitialiserAllocateur(programme, cle.publicKey);
+    const signature = await envoyer(connection, cle, [ix]);
+    return { admin: cle.publicKey.toBase58(), signature };
+  },
+
+  /** Ouvre une position sur un actif, avec son plafond de valorisation. */
+  async ouvrir(config, [mintStr, plafondStr, toleranceStr]) {
+    if (!mintStr || !plafondStr || !toleranceStr) {
+      throw new Error("usage : ouvrir <mint-actif> <plafond> <tolerance-bps>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionOuvrirPosition(
+      ctx, cle.publicKey, BigInt(plafondStr), Number(toleranceStr),
+    );
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, plafond: plafondStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * Regle le plafond. L'ABAISSER SOUS LA VALORISATION COURANTE EST ADMIS : c'est
+   * le geste qu'on veut pouvoir faire en premier quand une venue inquiete, et il
+   * bloque tout nouveau depot sans rien forcer a sortir.
+   */
+  async plafonner(config, [mintStr, plafondStr]) {
+    if (!mintStr || !plafondStr) throw new Error("usage : plafonner <mint-actif> <plafond>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionReglerPlafond(ctx, cle.publicKey, BigInt(plafondStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * Regle la tolerance des bornes de sortie, en dix-milliemes.
+   *
+   * C'est l'ecart accepte entre l'arithmetique de la venue et la notre. La
+   * poser a zero rend les bornes exactes, donc fragiles au moindre changement
+   * d'arrondi chez le tiers ; le programme borne l'autre extremite.
+   */
+  async tolerer(config, [mintStr, bpsStr]) {
+    if (!mintStr || !bpsStr) throw new Error("usage : tolerer <mint-actif> <bps>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionReglerTolerance(ctx, cle.publicKey, Number(bpsStr));
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * Ferme une position sortie et rend son depot de non-expiration.
+   *
+   * SERT AUSSI DE CHEMIN DE MIGRATION : ajouter un champ a une position change
+   * sa taille, et un compte deja alloue ne grandit pas tout seul. Fermer puis
+   * rouvrir est le chemin le plus court, et sans risque des lors qu'elle est
+   * sortie de la venue.
+   */
+  async fermer(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : fermer <mint-actif>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionFermerPosition(ctx, cle.publicKey);
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, signature };
+  },
+
+  /** Suspend ou reprend la position. Ne bloque que les depots, jamais les sorties. */
+  async geler(config, [mintStr, etatStr]) {
+    if (!mintStr || (etatStr !== "oui" && etatStr !== "non")) {
+      throw new Error("usage : geler <mint-actif> <oui|non>");
+    }
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionSuspendre(ctx, cle.publicKey, etatStr === "oui");
+    const signature = await envoyer(connection, cle, [ix]);
+    return { actif: mintStr, ...(await etatDeLaPosition(ctx)), signature };
+  },
+
+  /**
+   * CHEMIN D'URGENCE : sort l'integralite de la position de la venue.
+   *
+   * AUCUN ARGUMENT. Ni montant, la position sort en entier ; ni borne, elle est
+   * calculee sur la chaine depuis la valorisation du solde et minoree de la
+   * tolerance de la position. C'est ce qui le rend utilisable sous incident, ou
+   * l'on ne veut ni valoriser d'abord ni se tromper de chiffre.
+   */
+  async evacuer(config, [mintStr]) {
+    if (!mintStr) throw new Error("usage : evacuer <mint-actif>");
+    const { connection, cle, provider } = contexte(config);
+    const ctx = await contexteAllocateur(config, connection, provider, mintStr);
+    const ix = await instructionRacheterTout(ctx, cle.publicKey);
+    const signature = await envoyer(connection, cle, [ix]);
+    return {
+      actif: mintStr,
+      ...(await soldesDeLaPosition(connection, ctx)),
+      signature,
     };
   },
 
@@ -478,20 +596,17 @@ const commandes: Record<
    * qu'il observe, et le programme verifie de son cote que l'actif demande est
    * bien arrive.
    */
-  async rapatrier(config, [mintStr, montantStr, partsMaxStr]) {
-    if (!mintStr || !montantStr || !partsMaxStr) {
-      throw new Error("usage : rapatrier <mint-actif> <montant> <parts-maximales>");
+  async rapatrier(config, [mintStr, montantStr]) {
+    if (!mintStr || !montantStr) {
+      throw new Error("usage : rapatrier <mint-actif> <montant>");
     }
     const { connection, cle, provider } = contexte(config);
     const ctx = await contexteAllocateur(config, connection, provider, mintStr);
-    const ix = await instructionRetirerJupiterLend(
-      ctx, cle.publicKey, BigInt(montantStr), BigInt(partsMaxStr),
-    );
+    const ix = await instructionRetirerJupiterLend(ctx, cle.publicKey, BigInt(montantStr));
     const signature = await envoyer(connection, cle, [ix]);
     return {
       actif: mintStr,
       montant: montantStr,
-      partsMaximales: partsMaxStr,
       ...(await soldesDeLaPosition(connection, ctx)),
       signature,
     };
@@ -575,6 +690,24 @@ async function contexteAllocateur(
     actif,
     programmeDeJeton: compteMint.owner,
     coffre,
+  };
+}
+
+/** Etat de la position tel que le programme le porte, ou son absence. */
+async function etatDeLaPosition(
+  ctx: AllocatorContext,
+): Promise<{ position: Record<string, unknown> | null }> {
+  const etat = await lirePosition(ctx);
+  return {
+    position: etat
+      ? {
+          plafond: etat.plafond.toString(),
+          toleranceBps: etat.toleranceBps,
+          suspendue: etat.suspendue,
+          actif: etat.actif.toBase58(),
+          jetonDeRecu: etat.jetonDeRecu.toBase58(),
+        }
+      : null,
   };
 }
 

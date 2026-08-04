@@ -92,6 +92,28 @@ pub fn lire_marche(donnees: &[u8]) -> Result<Marche, LectureError> {
     })
 }
 
+/// Le marche a-t-il ete rafraichi a cet instant precis ?
+///
+/// PURE ET NON BRANCHEE SUR L'HORLOGE, deliberement : la lire ici rendrait cette
+/// regle intestable hors chaine, et le seuil de couverture de ce depot la
+/// signalerait a juste titre. Le gestionnaire lit l'horloge, cette fonction
+/// tranche.
+///
+/// EGALITE STRICTE, alors que ce dessin refuse l'egalite stricte partout
+/// ailleurs face a un tiers. La difference est de nature. Les bornes de sortie
+/// comparent le resultat d'une ARITHMETIQUE, sujette a un changement d'arrondi
+/// qui ne vole rien ; ici on verifie un FAIT BINAIRE, « le rafraichissement que
+/// nous venons d'invoquer a-t-il pris effet ». Un fait ne derive pas d'une
+/// unite.
+///
+/// MESURE AVANT D'ETRE EXIGE. L'etape 1 se contentait de journaliser cet
+/// horodatage, faute de savoir comment la venue le posait ; les deux
+/// transactions devnet du 04/08 ont montre qu'il tombe exactement sur l'horloge
+/// de la transaction.
+pub fn est_frais(marche: &Marche, maintenant: i64) -> bool {
+    i64::try_from(marche.dernier_rafraichissement).is_ok_and(|t| t == maintenant)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,6 +181,31 @@ mod tests {
     fn le_jeton_de_recu_n_est_pas_l_actif() {
         let m = lire_marche(&MARCHE_USDC).unwrap();
         assert_ne!(m.actif, m.jeton_de_recu);
+    }
+
+    /// Les valeurs viennent du marche reel : l'horodatage lu le 02/08, cinq
+    /// jours perime, et celui du premier depot devnet du 04/08, qui tombait
+    /// exactement sur l'horloge de sa transaction.
+    #[test]
+    fn ne_reconnait_frais_qu_un_marche_rafraichi_a_l_instant_meme() {
+        let mut m = lire_marche(&MARCHE_USDC).unwrap();
+        assert!(!est_frais(&m, 1_785_853_332));
+
+        m.dernier_rafraichissement = 1_785_853_332;
+        assert!(est_frais(&m, 1_785_853_332));
+        // Une seconde d'ecart suffit a le declarer perime : c'est un fait
+        // binaire, pas une tolerance.
+        assert!(!est_frais(&m, 1_785_853_333));
+        assert!(!est_frais(&m, 1_785_853_331));
+    }
+
+    /// Un horodatage qui ne tient pas dans un entier signe ne peut pas etre
+    /// egal a une horloge : le refuser vaut mieux que le tronquer.
+    #[test]
+    fn un_horodatage_hors_bornes_n_est_jamais_frais() {
+        let mut m = lire_marche(&MARCHE_USDC).unwrap();
+        m.dernier_rafraichissement = u64::MAX;
+        assert!(!est_frais(&m, i64::MAX));
     }
 
     #[test]
