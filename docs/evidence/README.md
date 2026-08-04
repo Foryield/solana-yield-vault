@@ -14,7 +14,7 @@ Planned files:
 | `compliance-hook.md` | Token-2022 transfer hook enforcing the eligibility allowlist (**done**) |
 | `demonstration-web.md` | Public devnet demo: connect, deposit, withdraw, transfer (**live**) |
 | `provisionnement-sous-garde.md` | Custody-provisioned wallet deposits with no extension and no seed phrase (**done**) |
-| `allocator.md` | CPI into Kamino, marginfi and Jupiter Lend; strategy adapter (**venue addressable on devnet**; CPI proof pending deployment) |
+| `allocator.md` | CPI into Kamino, marginfi and Jupiter Lend; strategy adapter (**Jupiter Lend deposit and withdrawal proven on devnet**; other venues pending) |
 | `routing.md` | Best-execution swap and rebalancing; devnet and mainnet-fork proofs |
 | `event-schema.md` | Compliance event schema v1 published as an open specification |
 

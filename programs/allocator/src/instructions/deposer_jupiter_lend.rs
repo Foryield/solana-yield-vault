@@ -43,9 +43,17 @@ pub struct DeposerJupiterLend<'info> {
 
     /// Autorite de signature de la position, une par couple coffre et marche.
     /// Sans donnees a l'etape 1 : elle signe et detient, elle ne raconte rien.
+    ///
+    /// DECLAREE MUTABLE, ET C'EST OBLIGATOIRE plutot que prudent. La venue
+    /// attend son signataire en ECRITURE, son IDL le declarant `writable`. Une
+    /// invocation croisee ne peut jamais accorder plus de droits qu'elle n'en a
+    /// recus : sans `mut` ici, le programme demande une elevation et l'execution
+    /// s'arrete sur « writable privilege escalated », qui nomme le compte mais
+    /// pas la cause. Constate sur devnet le 04/08, pas deduit.
+    ///
     /// CHECK: aucune donnee lue ; l'adresse est entierement contrainte par ses
     /// graines, donc un compte etranger ne peut pas se presenter ici.
-    #[account(seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
+    #[account(mut, seeds = [POSITION_SEED, coffre.key().as_ref(), marche.key().as_ref()], bump)]
     pub position: UncheckedAccount<'info>,
 
     /// Actif detenu par la position, source du depot.

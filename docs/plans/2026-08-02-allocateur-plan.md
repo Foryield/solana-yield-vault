@@ -6,6 +6,7 @@ rendement et rend compte de chaque mouvement.
 
 | Version | Date | Changement |
 |---|---|---|
+| 1.6 | 2026-08-04 | **Étape 1 CLOSE, S4 clos.** Dépôt et retrait signés sur devnet. Trois mesures rapportées : l'horodatage tombe sur l'horloge, la venue applique la formule simplifiée et non la conversion en deux temps, le signataire d'une CPI doit être déclaré en écriture |
 | 1.5 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Les trois programmes de la venue lus sur la chaîne, les graines confirmées, le compte de réclamation existe déjà : le préalable tombe |
 | 1.4 | 2026-08-04 | Étape 1 câblée. L'éditeur expose des instructions bornées que la lecture du 02/08 avait manquées : le plancher est désormais appliqué des deux côtés. Rotation des rangs 4 à 6 corrigée |
 | 1.3 | 2026-08-03 | Autorité de signature tranchée : une par position, actif et venue, pour que le défaut d'un adaptateur reste borné à sa venue |
@@ -81,6 +82,29 @@ n'accepte plus rien.
 La précision `1e12` est une constante du protocole, pas une convention de notre
 côté : elle est nommée `EXCHANGE_PRICES_PRECISION` chez l'éditeur et reprise
 telle quelle par l'intégration de référence.
+
+### Correction du 04/08 : la venue applique la formule simplifiée
+
+Le premier dépôt réel contredit cette section sur son point central. Pour 2 USDC
+et aux prix de la transaction, lus dans son propre événement de taux, la
+conversion en deux temps rend **1 979 613** et la division simple **1 979 614**.
+La venue a émis **1 979 614**.
+
+Ce qui est écrit plus haut reste juste sur un point, les deux formules divergent
+bien ; et faux sur l'autre, c'est la simplifiée qui décrit ce que fait la venue.
+La conséquence s'inverse donc : ce n'est pas la simplifiée qui ferait rejeter
+les dépôts, c'est **l'égalité stricte fondée sur la conversion en deux temps**,
+qui aurait refusé ce dépôt-là.
+
+**La décision était bonne, la prémisse était fausse.** Le plancher a tenu
+précisément parce qu'il minore. C'est un argument de plus pour un plancher
+plutôt qu'une égalité : nous nous sommes trompés sur leur arithmétique, et le
+plancher a absorbé l'erreur au lieu de la transformer en panne.
+
+Portée de cette mesure, dite honnêtement : **un montant, un marché, une
+transaction**. Elle ne prouve pas quelle formule tourne chez eux, elle réfute
+l'hypothèse que ce soit la conversion en deux temps. L'étape 2 devra trancher
+sur un échantillon, et pas sur ce seul point.
 
 ## Deux approches pour se protéger d'une invocation croisée
 
@@ -200,17 +224,11 @@ critère de sortie de S4, qui n'a plus que cela à rendre. Passe par un module d
 types généré depuis l'IDL de l'éditeur, aucun paquet Rust n'étant publié ;
 marginfi procède de même avec un module dédié.
 
-*Au 04/08 : le câblage est écrit et vérifié contre l'IDL, les deux instructions
-`deposer_jupiter_lend` et `retirer_jupiter_lend` existent, l'autorité de
-position signe. Le chemin d'exploitation est écrit lui aussi et **éprouvé en
-lecture contre devnet** : les vingt-deux adresses se dérivent, les dix de la
-venue existent toutes, et le compte de réclamation qu'on croyait bloquant existe
-déjà. Voir `docs/evidence/allocator.md`.*
-
-***Il ne manque plus qu'un déploiement et deux transactions.** L'allocateur n'a
-jamais été déployé : aucun binaire ne répond à son adresse. Tant que le dépôt et
-le retrait ne sont pas signés sur devnet, l'étape 1 n'est pas close et S4 non
-plus.*
+***CLOSE le 04/08.*** *Un dépôt de 2 USDC et un retrait de 1 USDC ont réussi sur
+devnet depuis l'allocateur, signatures dans
+[`allocator.md`](../evidence/allocator.md). Les journaux confirment que ce sont
+les variantes bornées qui s'exécutent, `DepositWithMinAmountOut` et
+`WithdrawWithMaxSharesBurn`. **S4 est clos avec elle.***
 
 **Étape 2 - l'adaptateur, ses plafonds et son chemin d'urgence.** Un adaptateur
 par venue sous `src/venues/`, plafond par protocole, retrait d'urgence. La
@@ -300,12 +318,11 @@ Le comportement de `updateRate` sur notre marché devnet, resté cinq jours sans
 rafraîchissement : des récompenses matérialisées d'un coup peuvent surprendre, et
 il vaut mieux le constater sur une transaction isolée que dans un dépôt.
 
-*Au 04/08, ce point reste ouvert et le câblage en tient compte : l'horodatage du
-dernier rafraîchissement est **journalisé, pas exigé**. Exiger qu'il tombe sur
-l'horloge de la transaction supposerait connaître la façon dont la venue le
-pose, ce que nous n'avons pas lu ; une exigence fausse ferait échouer tous les
-dépôts. La première preuve devnet dira ce que vaut cet horodatage juste après un
-rafraîchissement, et l'étape 2 pourra alors durcir sur une mesure.*
+***MESURÉ le 04/08, ce point est clos.*** *L'horodatage tombe exactement sur
+l'horloge de la transaction : `marche rafraichi a 1785853332, horloge
+1785853332`, sur les deux transactions. Le câblage le journalise encore plutôt
+que de l'exiger ; l'étape 2 peut maintenant durcir sur cette mesure. Aucune
+récompense matérialisée d'un coup n'a été observée.*
 
 ## Vérification
 

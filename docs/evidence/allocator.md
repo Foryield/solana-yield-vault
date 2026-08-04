@@ -81,8 +81,63 @@ rendent `F9c5aHU7k8HATVqorZgg6hUEHS9Kc2fXZUPDxGbVtueE`, bump 255. La fixture est
 produite par le test Rust et relue par le test TypeScript, comme pour le coffre
 et le hook.
 
-## Ce qui reste
+## 2026-08-04 - Dépôt et retrait Jupiter Lend depuis notre programme, S4 clos
 
-Le dépôt et le retrait eux-mêmes, signatures consignées. Ils exigent le
-déploiement de l'allocateur sur devnet, qui n'a pas eu lieu à cette date : aucun
-binaire ne répond à `BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr`.
+**Ce que ça prouve** : l'allocateur place et reprend de l'actif sur une venue de
+rendement tierce, en invocation croisée, signant par son autorité de position.
+C'était le critère de sortie du spike S4 et de l'étape 1 du plan.
+
+**Cluster** : Solana **devnet** (`https://api.devnet.solana.com`).
+
+| Élément | Adresse |
+|---|---|
+| Allocateur | `BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr` |
+| Autorité de position | `F9c5aHU7k8HATVqorZgg6hUEHS9Kc2fXZUPDxGbVtueE` |
+| Actif de la position | `Byr3csRSNu1GJpBqaVfiWcTzdQ69tDkZcjEQcdvTZtci` |
+| Jetons de reçu de la position | `6eCACA5DDU9udAugxFFi4A2ZYXHdLjBQnM6W5XMbttyM` |
+| Opérateur | `7DsCEFjRBQkWiEPE739QuY4CiRWXQEZbeB1F5RGRsuBP` |
+
+**Signatures**, dans l'ordre du parcours :
+
+| Geste | Signature |
+|---|---|
+| Comptes de jeton de la position | [`GnccYfgA…x5Jn`](https://explorer.solana.com/tx/GnccYfgAr2CyU6szfGeo99KaY1Qmbq2Pb94CZsKn6ZRaVor3iXiCjMBns9QYX6v7CQzabB7dUQL7rvksagMx5Jn?cluster=devnet) |
+| Dotation, 5 USDC | [`s5x7MGH5…CoVU`](https://explorer.solana.com/tx/s5x7MGH5c2FnNVQvqPt7Mh7fpnAkCYkdN27nycUDbHDhfsX5d7nJfwgmWSfgywG2mc9WxLvrAd3Y6JMndC1CoVU?cluster=devnet) |
+| **Dépôt, 2 USDC** | [`JHvfJME7…yyTH`](https://explorer.solana.com/tx/JHvfJME77D6cRBYx4PXSShjWc8QNbt5oHsgy5gcvkuYzFmVMzduG5ejPSXnucCKc5Jvx8RrgzDguM1pDyZ8yyTH?cluster=devnet) |
+| **Retrait, 1 USDC** | [`5xT1mim9…xQcQU`](https://explorer.solana.com/tx/5xT1mim9H7b4oXZQXxdthPPLq8rtsdSHZHm6DN7xU1BjAc4jfBhJyK9KQudzz65UM8qwQgb3wTsFQyzmZemxQcQU?cluster=devnet) |
+
+**Ce que les journaux montrent, et qui ne se déduisait pas.** Le dépôt exécute
+`DepositWithMinAmountOut` et le retrait `WithdrawWithMaxSharesBurn` : ce sont
+bien les variantes bornées qui tournent, pas les nues. Le dépôt a rendu
+1 979 614 jetons de reçu pour 2 USDC ; le retrait a brûlé 989 808 jetons pour
+1 USDC, sous un plafond de 1 000 000.
+
+**Coût.** 1,23 SOL de déploiement, 0,000005 SOL par transaction. Solde
+d'exploitation 23,242 → 21,912 SOL, extension du compte de programme comprise.
+
+## 2026-08-04 - Trois mesures que seul le réseau pouvait rendre
+
+**L'horodatage de rafraîchissement tombe sur l'horloge de la transaction.**
+Journalisé et non exigé, faute de l'avoir mesuré : `marche rafraichi a
+1785853332, horloge 1785853332`. Les deux valeurs sont égales, sur les deux
+transactions. Le contrôle peut donc être durci à l'étape 2, sur une mesure et
+non sur une supposition.
+
+**La venue applique la formule simplifiée, pas la conversion en deux temps.** Le
+journal du dépôt dit « ecart favorable de 1 parts au-dela du plancher ». Aux
+prix de la transaction, lus dans son propre événement de taux, la conversion en
+deux temps rend 1 979 613 et la division simple 1 979 614. La venue a émis
+1 979 614.
+
+C'est l'inverse de ce que le plan supposait, et la conséquence est directe : le
+plancher a tenu parce qu'il **minore**, mais l'égalité stricte que le plan avait
+écartée aurait **refusé ce dépôt**. La décision était bonne, la prémisse était
+fausse. Une mesure, un montant, un marché : cela ne prouve pas leur formule,
+cela réfute l'hypothèse.
+
+**Le signataire d'une invocation croisée doit être déclaré en écriture chez
+l'appelant.** Premier essai arrêté sur « writable privilege escalated », qui
+nomme le compte et pas la cause : la venue attend son signataire en écriture, et
+une invocation croisée ne peut pas élever un droit qu'elle n'a pas reçu. Aucun
+test hors ligne n'aurait pu le trouver, la simulation d'une invocation croisée
+demandant le binaire du tiers.

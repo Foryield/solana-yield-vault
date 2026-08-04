@@ -4,6 +4,7 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 | Version | Date | Changement |
 |---|---|---|
+| 2.9 | 2026-08-04 | **S4 CLOS.** Dépôt et retrait Jupiter Lend signés sur devnet depuis l'allocateur. L'étape 1 est close, il reste les étapes 2 à 4 |
 | 2.8 | 2026-08-04 | Chemin d'exploitation écrit et éprouvé en lecture contre devnet. Il ne manque plus qu'un déploiement et deux transactions pour clore S4 |
 | 2.7 | 2026-08-04 | Câblage de l'étape 1 écrit : dépôt et retrait Jupiter Lend bornés des deux côtés. Il ne manque que le chemin d'exploitation et la preuve devnet |
 | 2.6 | 2026-08-03 | Autorité de signature de l'allocateur tranchée : une par position |
@@ -28,10 +29,10 @@ Où on en est, ce qui vient ensuite, et ce qu'il ne faut pas redécouvrir.
 
 ## Acquis
 
-Deux programmes écrits, testés, déployés, et **exercés contre le réseau sur des
-actifs réels**. 187 tests (66 en Rust, 20 au client, 10 à la ligne de commande,
+Trois programmes écrits, testés, déployés, et **exercés contre le réseau sur des
+actifs réels**. 237 tests (99 en Rust, 31 au client, 16 à la ligne de commande,
 26 à la démonstration, 65 au paquet de provisionnement), sept contrôles
-d'intégration continue obligatoires, 35 pull requests fusionnées.
+d'intégration continue obligatoires, 44 pull requests fusionnées.
 
 **Tous les points ouverts de la conception sont tranchés.**
 
@@ -39,6 +40,7 @@ d'intégration continue obligatoires, 35 pull requests fusionnées.
 |---|---|
 | Programme du coffre | `2bkjZG8njXHQ1tdj5aRSiwjjndX1qEvjFYzBYJQjNysw` |
 | Programme du hook | `EGbJBdCUK5ecUiVJ9FFiGdVEZQ15cE31zNm97RUpFK63` |
+| Programme de l'allocateur | `BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr` |
 | Coffre USDC | `SWmEZGD1QjPZZqPXBkRfVsmbZpTEd18uJ3RgMEJCwVW` |
 | Coffre EURC | `3HDgK4vurCfZRU8cPTJAH3KVEcbsypHzefqLtVXYpXAq` |
 
@@ -76,9 +78,12 @@ Le grand chantier restant. **Son plan est écrit le 02/08** et porte quatre
 étapes : la CPI qui clôt S4, l'adaptateur avec ses plafonds, le schéma
 d'événements, puis la réallocation.
 
-**Les trois pièces pures de l'étape 1 sont écrites, et le réseau n'a pas encore
-été touché.** C'est l'ordre voulu : chaque pièce est éprouvée avant celle qui
-l'appelle.
+**L'étape 1 est CLOSE le 04/08, et S4 avec elle.** Un dépôt de 2 USDC et un
+retrait de 1 USDC ont réussi sur devnet depuis l'allocateur, signant par son
+autorité de position. Signatures dans [`allocator.md`](../evidence/allocator.md).
+
+Les trois pièces pures ont été écrites avant tout câblage, et le câblage avant
+tout appel réseau : chaque pièce était éprouvée avant celle qui l'appelle.
 
 L'arithmétique de conversion, en deux temps avec arrondi intermédiaire, éprouvée
 sur les taux réels du marché. La lecture du compte de marché, éprouvée sur les
@@ -116,9 +121,23 @@ tous, compte de réclamation compris : le préalable que le plan annonçait
 bloquant est levé. Relevé et méthode dans
 [`allocator.md`](../evidence/allocator.md).
 
-**Ce qui manque pour clore l'étape 1, et donc S4** : déployer l'allocateur sur
-devnet, doter la position, puis signer un dépôt et un retrait. **Aucun binaire
-ne répond encore à l'adresse de l'allocateur.**
+**L'allocateur est déployé sur devnet** à l'adresse
+`BjQJMxT5m4wb6nLBnA91s446hTsj1AL9RiwxVEk2rgGr`, autorité de mise à jour au
+portefeuille d'exploitation, comme les deux autres programmes.
+
+**Trois choses que seul le réseau pouvait apprendre**, toutes consignées. Le
+signataire d'une invocation croisée doit être déclaré en écriture chez
+l'appelant, sans quoi l'exécution s'arrête sur un message qui nomme le compte et
+pas la cause. L'horodatage de rafraîchissement tombe exactement sur l'horloge de
+la transaction, ce qui referme un point ouvert du plan. Et **la venue applique
+la formule simplifiée, non la conversion en deux temps** : le plan supposait
+l'inverse, et l'égalité stricte qu'il avait écartée aurait refusé ce dépôt. La
+décision était bonne, la prémisse était fausse.
+
+**Ce qui reste du chantier** : les étapes 2 à 4, adaptateur et plafonds, schéma
+d'événements, réallocation. Plus deux dettes nommées à solder sur une mesure :
+le plafond du retrait, encore fourni par l'appelant, et l'horodatage, encore
+journalisé plutôt qu'exigé.
 
 La lecture de l'intégration de référence a trouvé trois contraintes que la
 conception ignorait : le taux doit être rafraîchi dans la même transaction, un

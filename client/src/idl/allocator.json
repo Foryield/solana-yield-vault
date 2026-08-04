@@ -56,8 +56,17 @@
           "docs": [
             "Autorite de signature de la position, une par couple coffre et marche.",
             "Sans donnees a l'etape 1 : elle signe et detient, elle ne raconte rien.",
+            "",
+            "DECLAREE MUTABLE, ET C'EST OBLIGATOIRE plutot que prudent. La venue",
+            "attend son signataire en ECRITURE, son IDL le declarant `writable`. Une",
+            "invocation croisee ne peut jamais accorder plus de droits qu'elle n'en a",
+            "recus : sans `mut` ici, le programme demande une elevation et l'execution",
+            "s'arrete sur « writable privilege escalated », qui nomme le compte mais",
+            "pas la cause. Constate sur devnet le 04/08, pas deduit.",
+            "",
             "graines, donc un compte etranger ne peut pas se presenter ici."
           ],
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -191,8 +200,13 @@
         {
           "name": "position",
           "docs": [
+            "Mutable pour la meme raison qu'au depot : la venue attend son signataire",
+            "en ecriture, et une invocation croisee ne peut pas elever un droit",
+            "qu'elle n'a pas recu.",
+            "",
             "graines."
           ],
+          "writable": true,
           "pda": {
             "seeds": [
               {
